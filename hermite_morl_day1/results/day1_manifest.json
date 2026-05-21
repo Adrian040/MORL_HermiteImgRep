@@ -8,9 +8,9 @@
   "kernel_size": 11,
   "n_components": 10,
   "outputs": {
-    "dataset": "data/processed/dataset_day1.npz",
-    "filters_figure": "results/figures/hermite_filters_N3.png",
-    "reconstruction_figure": "results/figures/reconstruction_top_energy_example.png",
-    "summary_table": "results/tables/top_energy_metrics_summary.csv"
+    "dataset": "data\\processed\\dataset_day1.npz",
+    "filters_figure": "results\\figures\\hermite_filters_N3.png",
+    "reconstruction_figure": "results\\figures\\reconstruction_top_energy_example.png",
+    "summary_table": "results\\tables\\top_energy_metrics_summary.csv"
   }
 }
