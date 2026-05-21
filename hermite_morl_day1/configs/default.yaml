@@ -1,0 +1,18 @@
+project_root: .
+seed: 0
+
+dataset:
+  raw_dir: data/raw
+  use_skimage_if_empty: true
+  image_size: 64
+  train_images: 40
+  val_images: 10
+  test_images: 10
+
+hermite:
+  max_order: 3
+  sigma: 1.5
+  kernel_size: 11
+
+evaluation:
+  ks: [1, 3, 5, 10]
