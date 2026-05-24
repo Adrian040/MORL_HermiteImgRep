@@ -141,3 +141,11 @@ def save_metric_curve(summary_df, output_path: str | Path) -> None:
             draw.text((x - (bbox[2] - bbox[0]) / 2, height - margin + 10), label, fill=axis_color, font=small)
 
     canvas.save(output_path)
+
+def mask_to_image(mask: np.ndarray, side: int | None = None) -> np.ndarray:
+    mask = np.asarray(mask, dtype=np.float32).reshape(-1)
+    if side is None:
+        side = int(np.ceil(np.sqrt(len(mask))))
+    canvas = np.zeros((side, side), dtype=np.float32)
+    canvas.flat[: len(mask)] = mask
+    return canvas

@@ -9,7 +9,7 @@
   "n_train": 40,
   "n_val": 10,
   "n_test": 10,
-  "checks_file": "results/Days5-8_env_checks.json",
-  "trajectory_file": "results/tables/Days5-8_random_episode.csv",
-  "summary_figure": "results/figures/Days5-8_random_episode_summary.png"
+  "checks_file": "results\\Days5-8_env_checks.json",
+  "trajectory_file": "results\\tables\\Days5-8_random_episode.csv",
+  "summary_figure": "results\\figures\\Days5-8_random_episode_summary.png"
 }
