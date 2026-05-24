@@ -1,0 +1,19 @@
+{
+  "obs_shape_ok": true,
+  "obs_finite": true,
+  "reward_dim": 4,
+  "n_components": 10,
+  "n_actions": 11,
+  "stop_action": 10,
+  "initial_k": 0,
+  "valid_step_reward_shape_ok": true,
+  "valid_step_reward_finite": true,
+  "valid_step_k": 1,
+  "valid_step_mse_finite": true,
+  "valid_step_ssim_finite": true,
+  "repeated_action_detected": true,
+  "repeated_reward_shape_ok": true,
+  "stop_terminates": true,
+  "stop_event_ok": true,
+  "all_checks_passed": true
+}
