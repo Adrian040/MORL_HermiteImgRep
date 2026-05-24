@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-results/checkpoints/
+results/checkpoints/*.pt
 data/processed/*.npz
