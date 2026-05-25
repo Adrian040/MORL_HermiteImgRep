@@ -1,11 +1,11 @@
 {
-  "state_dim": 16,
+  "state_dim": 34,
   "reward_dim": 4,
-  "n_actions": 7,
-  "n_components": 6,
-  "episodes": 12,
-  "device": "cpu",
-  "best_score": 0.6445007631907889,
+  "n_actions": 16,
+  "n_components": 15,
+  "episodes": 4000,
+  "device": "cuda",
+  "best_score": 0.843030800239463,
   "outputs": {
     "training_log": "results\\tables\\Days9-14_training_log.csv",
     "eval_summary": "results\\tables\\Days9-14_eval_summary.csv",
