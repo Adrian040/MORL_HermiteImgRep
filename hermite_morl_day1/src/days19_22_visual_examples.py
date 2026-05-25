@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from skimage import color, data, transform
 
+from .data_utils import prepare_dataset
 from .hermite_filters import build_hermite_filter_bank, component_labels
 from .hermite_representation import HermiteRepresentation
-from .metrics import mse, ssim, to_float01
+from .metrics import mse, ssim
 
 
 @dataclass(frozen=True)
@@ -22,86 +21,74 @@ class VisualConfig:
     kernel_size: int = 11
     image_size: int = 64
     seed: int = 0
+    split: str = "test"
+    fig2_image_id: int = 0
     fig6_images: int = 3
     fig6_k: int = 5
     compact_k: int = 3
     balanced_k: int = 5
     high_fidelity_k: int | None = None
-    agent_checkpoint: str | None = "results/checkpoints/Days9-14_best_envelope_dqn.pt"
     require_agent: bool = False
 
 
 METHOD_COLORS = {
-    "Original": "#111111",
-    "Random": "#7f7f7f",
+    "Random": "#6c757d",
     "Energy top-k": "#1f77b4",
     "Greedy": "#d62728",
     "Envelope-DQN": "#9467bd",
-    "Fallback": "#8c564b",
 }
 
-
-def _safe_title(text: str, max_len: int = 34) -> str:
-    text = str(text)
-    return text if len(text) <= max_len else text[: max_len - 1] + "…"
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 
 
-def _resize_gray(image: np.ndarray, image_size: int) -> np.ndarray:
-    image = np.asarray(image)
-    if image.ndim == 3:
-        if image.shape[-1] == 4:
-            image = image[..., :3]
-        image = color.rgb2gray(image)
-    image = to_float01(image)
-    return transform.resize(image, (image_size, image_size), anti_aliasing=True, preserve_range=True).astype(np.float32)
+def _raw_has_images(raw_dir: str | Path) -> bool:
+    raw_path = Path(raw_dir)
+    if not raw_path.exists():
+        return False
+    return any(p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS for p in raw_path.rglob("*"))
 
 
-def load_cifar_like_images(image_size: int = 64, n_images: int = 6, seed: int = 0, try_cifar: bool = True) -> Tuple[np.ndarray, str]:
-    """Carga CIFAR-10 local si existe; si no, usa un fallback reproducible tipo CIFAR con skimage."""
-    if try_cifar:
-        try:
-            from torchvision.datasets import CIFAR10  # type: ignore
-            dataset = CIFAR10(root="data/raw", train=False, download=False)
-            rng = np.random.default_rng(seed)
-            indices = rng.choice(len(dataset), size=min(n_images, len(dataset)), replace=False)
-            images = []
-            for idx in indices:
-                pil_img, _ = dataset[int(idx)]
-                images.append(_resize_gray(np.asarray(pil_img), image_size))
-            if images:
-                return np.stack(images, axis=0).astype(np.float32), "cifar10_local"
-        except Exception:
-            pass
-
-    base = [
-        data.astronaut(), data.coffee(), data.chelsea(), data.rocket(), data.camera(), data.coins(),
-        data.moon(), data.page(), data.immunohistochemistry(), data.text(), data.clock(),
-    ]
-    rng = np.random.default_rng(seed)
-    rng.shuffle(base)
-    images = [_resize_gray(img, image_size) for img in base[:n_images]]
-    return np.stack(images, axis=0).astype(np.float32), "skimage_cifar_like_fallback"
+def load_project_images(project_config: dict, split: str = "test") -> Tuple[np.ndarray, str]:
+    """Usa la misma lógica del proyecto: data/raw si hay imágenes; si no, fallback skimage."""
+    splits = prepare_dataset(project_config)
+    if split not in splits:
+        raise ValueError(f"Split inválido: {split}. Opciones: {list(splits.keys())}")
+    dataset_cfg = project_config.get("dataset", {})
+    raw_dir = dataset_cfg.get("raw_dir", "data/raw")
+    source = "data/raw" if _raw_has_images(raw_dir) else "skimage_fallback"
+    images = np.asarray(splits[split], dtype=np.float32)
+    if len(images) == 0:
+        raise ValueError(f"El split '{split}' no contiene imágenes.")
+    return images, source
 
 
 def make_representation(config: VisualConfig) -> Tuple[HermiteRepresentation, List[str]]:
-    bank = build_hermite_filter_bank(max_order=config.max_order, sigma=config.sigma, kernel_size=config.kernel_size)
+    bank = build_hermite_filter_bank(
+        max_order=config.max_order,
+        sigma=config.sigma,
+        kernel_size=config.kernel_size,
+    )
     return HermiteRepresentation(bank), component_labels(bank.components)
 
 
-def _analysis_and_reconstruction(representation: HermiteRepresentation, image: np.ndarray, selected: Sequence[int]) -> Tuple[np.ndarray, Dict[str, float]]:
+def _analysis_and_reconstruction(
+    representation: HermiteRepresentation,
+    image: np.ndarray,
+    selected: Sequence[int],
+) -> Tuple[np.ndarray, Dict[str, float]]:
     analysis = representation.analyze(image)
+    selected = [int(i) for i in selected if 0 <= int(i) < representation.filter_bank.n_components]
     reconstruction = representation.reconstruct(image, analysis.coefficients, selected, calibrated=True)
     k = len(selected)
     n_components = representation.filter_bank.n_components
     cost = float(k / n_components)
-    metrics = {
+    return reconstruction, {
         "mse": mse(image, reconstruction),
         "ssim": ssim(image, reconstruction),
         "k": float(k),
         "cost": cost,
         "k_norm": cost,
     }
-    return reconstruction, metrics
 
 
 def energy_order(representation: HermiteRepresentation, image: np.ndarray) -> np.ndarray:
@@ -109,10 +96,17 @@ def energy_order(representation: HermiteRepresentation, image: np.ndarray) -> np
     return np.argsort(analysis.energies)[::-1]
 
 
-def greedy_order(representation: HermiteRepresentation, image: np.ndarray, max_k: int, alpha: float = 0.5, beta: float = 0.5, lambda_cost: float = 0.1) -> List[int]:
+def greedy_order(
+    representation: HermiteRepresentation,
+    image: np.ndarray,
+    max_k: int,
+    alpha: float = 0.5,
+    beta: float = 0.5,
+    lambda_cost: float = 0.1,
+) -> List[int]:
     selected: List[int] = []
     n_components = representation.filter_bank.n_components
-    current_rec, current = _analysis_and_reconstruction(representation, image, selected)
+    _, current = _analysis_and_reconstruction(representation, image, selected)
     for _ in range(min(max_k, n_components)):
         remaining = [i for i in range(n_components) if i not in selected]
         best_component = remaining[0]
@@ -147,13 +141,13 @@ def parse_selected_indices(value) -> List[int]:
     text = str(value).replace(",", " ").strip()
     if not text:
         return []
-    out = []
+    selected = []
     for token in text.split():
         try:
-            out.append(int(token))
+            selected.append(int(token))
         except ValueError:
             continue
-    return out
+    return selected
 
 
 def load_agent_selections_from_csv(results_csv: str | Path | None, image_id: int = 0) -> Dict[str, List[int]]:
@@ -169,12 +163,18 @@ def load_agent_selections_from_csv(results_csv: str | Path | None, image_id: int
         agent = agent[agent["image_id"].astype(int) == int(image_id)]
     selections: Dict[str, List[int]] = {}
     for _, row in agent.iterrows():
-        name = str(row.get("preference_name", "Envelope-DQN"))
-        selections[name] = parse_selected_indices(row.get("selected_indices", ""))
+        name = str(row.get("preference_name", row.get("preference", "Envelope-DQN")))
+        selected = parse_selected_indices(row.get("selected_indices", ""))
+        if selected:
+            selections[name] = selected
     return selections
 
 
-def _choose_agent_like_selection(agent_selections: Dict[str, List[int]], key_words: Sequence[str], fallback: List[int]) -> Tuple[str, List[int], bool]:
+def _choose_agent_like_selection(
+    agent_selections: Dict[str, List[int]],
+    key_words: Sequence[str],
+    fallback: List[int],
+) -> Tuple[str, List[int], bool]:
     for name, selected in agent_selections.items():
         low = name.lower()
         if any(k.lower() in low for k in key_words):
@@ -182,17 +182,34 @@ def _choose_agent_like_selection(agent_selections: Dict[str, List[int]], key_wor
     if agent_selections:
         name, selected = next(iter(agent_selections.items()))
         return f"Envelope-DQN: {name}", selected, True
-    return "Fallback baseline", fallback, False
+    return "fallback", fallback, False
 
 
-def _mask_image(selected_sets: Dict[str, Sequence[int]], labels: Sequence[str], n_components: int) -> np.ndarray:
-    rows = len(selected_sets)
-    img = np.zeros((rows, n_components), dtype=np.float32)
+def _mask_image(selected_sets: Dict[str, Sequence[int]], n_components: int) -> np.ndarray:
+    img = np.zeros((len(selected_sets), n_components), dtype=np.float32)
     for r, selected in enumerate(selected_sets.values()):
         for idx in selected:
             if 0 <= int(idx) < n_components:
                 img[r, int(idx)] = 1.0
     return img
+
+
+def _safe_image_id(image_id: int, n_images: int) -> int:
+    if n_images <= 0:
+        raise ValueError("No hay imágenes disponibles.")
+    return int(np.clip(int(image_id), 0, n_images - 1))
+
+
+def _safe_image_ids(image_ids: Sequence[int] | None, n_images: int, max_count: int) -> List[int]:
+    if n_images <= 0:
+        raise ValueError("No hay imágenes disponibles.")
+    if image_ids:
+        ids = [int(i) for i in image_ids if 0 <= int(i) < n_images]
+    else:
+        ids = list(range(min(max_count, n_images)))
+    if not ids:
+        ids = [0]
+    return ids[:max_count]
 
 
 def save_fig2_selection_example(
@@ -208,7 +225,8 @@ def save_fig2_selection_example(
     config = config or VisualConfig()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    image = images[int(image_id)]
+    image_id = _safe_image_id(image_id, len(images))
+    image = images[image_id]
     n_components = representation.filter_bank.n_components
     high_k = n_components if config.high_fidelity_k is None else min(config.high_fidelity_k, n_components)
     balanced_k = min(config.balanced_k, n_components)
@@ -228,8 +246,8 @@ def save_fig2_selection_example(
     rec_bal, met_bal = _analysis_and_reconstruction(representation, image, bal_sel)
     rec_comp, met_comp = _analysis_and_reconstruction(representation, image, comp_sel)
 
-    fig = plt.figure(figsize=(12.6, 7.2))
-    gs = fig.add_gridspec(2, 4, height_ratios=[3.1, 1.45], hspace=0.35, wspace=0.08)
+    fig = plt.figure(figsize=(12.8, 7.35))
+    gs = fig.add_gridspec(2, 4, height_ratios=[3.15, 1.50], hspace=0.36, wspace=0.08)
     panels = [
         (image, "Original", None),
         (rec_high, "Alta fidelidad" if high_is_agent else "Alta fidelidad\n(fallback energy)", met_high),
@@ -252,7 +270,7 @@ def save_fig2_selection_example(
         "Balanceada": bal_sel,
         "Compacta": comp_sel,
     }
-    mask = _mask_image(selected_sets, labels, n_components)
+    mask = _mask_image(selected_sets, n_components)
     axm = fig.add_subplot(gs[1, :])
     im = axm.imshow(mask, aspect="auto", interpolation="nearest", cmap="viridis", vmin=0, vmax=1)
     axm.set_title("Máscara de componentes seleccionados", fontsize=12, fontweight="bold")
@@ -307,11 +325,10 @@ def save_fig6_method_comparison(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     n_components = representation.filter_bank.n_components
     k = min(config.fig6_k, n_components)
-    image_ids = list(image_ids) if image_ids is not None else list(range(min(config.fig6_images, len(images))))
-    image_ids = [int(i) for i in image_ids[: config.fig6_images]]
-
+    image_ids = _safe_image_ids(image_ids, len(images), config.fig6_images)
     method_names = ["Original", "Random", "Energy top-k", "Greedy", "Envelope-DQN"]
-    fig, axes = plt.subplots(len(image_ids), len(method_names), figsize=(14.5, 3.35 * len(image_ids)), squeeze=False)
+
+    fig, axes = plt.subplots(len(image_ids), len(method_names), figsize=(14.7, 3.45 * len(image_ids)), squeeze=False)
     rows = []
     for row_idx, image_id in enumerate(image_ids):
         image = images[image_id]
@@ -322,7 +339,11 @@ def save_fig6_method_comparison(
             "Greedy": greedy_order(representation, image, max_k=k),
         }
         agent_selections = load_agent_selections_from_csv(results_csv, image_id=image_id)
-        agent_label, agent_sel, agent_ok = _choose_agent_like_selection(agent_selections, ["balance", "general", "high", "compact"], selections["Energy top-k"])
+        agent_label, agent_sel, agent_ok = _choose_agent_like_selection(
+            agent_selections,
+            ["balance", "general", "high", "compact"],
+            selections["Energy top-k"],
+        )
         selections["Envelope-DQN"] = agent_sel
 
         for col_idx, method in enumerate(method_names):
@@ -331,17 +352,15 @@ def save_fig6_method_comparison(
                 ax.imshow(image, cmap="gray", vmin=0, vmax=1)
                 ax.set_title("Original" if row_idx == 0 else "", fontsize=11, fontweight="bold")
                 ax.set_ylabel(f"Imagen {image_id}", fontsize=11, fontweight="bold")
-                subtitle = ""
             else:
                 selected = selections[method]
                 rec, metrics = _analysis_and_reconstruction(representation, image, selected)
                 ax.imshow(rec, cmap="gray", vmin=0, vmax=1)
                 title = method
                 if method == "Envelope-DQN" and not agent_ok:
-                    title = "Envelope-DQN\n(no checkpoint; fallback)"
+                    title = "Envelope-DQN\n(no disponible; fallback)"
                 ax.set_title(title if row_idx == 0 else "", fontsize=11, fontweight="bold", color=METHOD_COLORS.get(method, "#111111"))
-                subtitle = f"MSE={metrics['mse']:.4f}\nSSIM={metrics['ssim']:.3f}, K={int(metrics['k'])}"
-                ax.set_xlabel(subtitle, fontsize=8.8)
+                ax.set_xlabel(f"MSE={metrics['mse']:.4f}\nSSIM={metrics['ssim']:.3f}, K={int(metrics['k'])}", fontsize=8.8)
                 rows.append({
                     "figure": "fig6_method_comparison",
                     "image_id": image_id,
@@ -366,12 +385,12 @@ def save_fig6_method_comparison(
 
 
 def run_visual_examples(
+    project_config: dict,
     output_root: str | Path = "results",
     prefix: str = "Days19-22",
     config: VisualConfig | None = None,
     results_csv: str | Path | None = "results/tables/Days15-18_all_methods_by_image.csv",
     image_ids: Sequence[int] | None = None,
-    try_cifar: bool = True,
 ) -> Dict[str, str]:
     config = config or VisualConfig()
     output_root = Path(output_root)
@@ -380,24 +399,45 @@ def run_visual_examples(
     figures_dir.mkdir(parents=True, exist_ok=True)
     tables_dir.mkdir(parents=True, exist_ok=True)
 
-    n_images = max(config.fig6_images, max(image_ids) + 1 if image_ids else config.fig6_images, 4)
-    images, dataset_source = load_cifar_like_images(config.image_size, n_images=n_images, seed=config.seed, try_cifar=try_cifar)
+    images, dataset_source = load_project_images(project_config, split=config.split)
     representation, labels = make_representation(config)
 
     fig2_path = figures_dir / f"{prefix}_fig2_selection_example.png"
     fig6_path = figures_dir / f"{prefix}_fig6_method_comparison.png"
-    meta2 = save_fig2_selection_example(images, representation, labels, fig2_path, results_csv=results_csv, image_id=0, config=config)
-    meta6 = save_fig6_method_comparison(images, representation, labels, fig6_path, results_csv=results_csv, image_ids=image_ids, config=config)
+    fig2_image_id = _safe_image_id(config.fig2_image_id, len(images))
+    fig6_image_ids = _safe_image_ids(image_ids, len(images), config.fig6_images)
+    meta2 = save_fig2_selection_example(
+        images,
+        representation,
+        labels,
+        fig2_path,
+        results_csv=results_csv,
+        image_id=fig2_image_id,
+        config=config,
+    )
+    meta6 = save_fig6_method_comparison(
+        images,
+        representation,
+        labels,
+        fig6_path,
+        results_csv=results_csv,
+        image_ids=fig6_image_ids,
+        config=config,
+    )
     metadata = pd.concat([meta2, meta6], ignore_index=True)
     metadata_path = tables_dir / f"{prefix}_visual_examples_metadata.csv"
     metadata.to_csv(metadata_path, index=False)
 
     manifest = {
         "dataset_source": dataset_source,
+        "split": config.split,
+        "n_images_available": int(len(images)),
         "max_order": config.max_order,
         "sigma": config.sigma,
         "kernel_size": config.kernel_size,
         "image_size": config.image_size,
+        "fig2_image_id": int(fig2_image_id),
+        "fig6_image_ids": [int(i) for i in fig6_image_ids],
         "fig2": str(fig2_path),
         "fig6": str(fig6_path),
         "metadata": str(metadata_path),

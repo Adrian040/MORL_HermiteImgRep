@@ -2,7 +2,12 @@ project_root: .
 seed: 0
 
 dataset:
+  raw_dir: data/raw
+  use_skimage_if_empty: true
   image_size: 64
+  train_images: 40
+  val_images: 10
+  test_images: 10
 
 hermite:
   max_order: 3
@@ -10,10 +15,11 @@ hermite:
   kernel_size: 11
 
 visual_examples:
+  split: test
+  fig2_image_id: 0
   fig6_images: 3
   fig6_k: 5
   compact_k: 3
   balanced_k: 5
   high_fidelity_k: null
-  agent_checkpoint: results/checkpoints/Days9-14_best_envelope_dqn.pt
   require_agent: false
