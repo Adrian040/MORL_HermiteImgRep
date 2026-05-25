@@ -10,7 +10,7 @@ dataset:
   test_images: 10
 
 hermite:
-  max_order: 4
+  max_order: 3
   sigma: 1.5
   kernel_size: 11
 
