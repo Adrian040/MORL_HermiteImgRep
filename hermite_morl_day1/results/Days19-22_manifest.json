@@ -1,0 +1,18 @@
+{
+  "input_csv": "results\\tables\\Days15-18_all_methods_by_image.csv",
+  "mse_reference": 0.4375607967376709,
+  "n_rows": 2310,
+  "n_pareto_global": 48,
+  "objective_space": "results\\tables\\Days19-22_objective_space.csv",
+  "pareto_front_global": "results\\tables\\Days19-22_pareto_front_global.csv",
+  "pareto_front_by_method": "results\\tables\\Days19-22_pareto_front_by_method.csv",
+  "hypervolume_summary": "results\\tables\\Days19-22_hypervolume_summary.csv",
+  "method_summary": "results\\tables\\Days19-22_method_summary.csv",
+  "figures": {
+    "quality_cost": "results\\figures\\Days19-22_fig3_quality_cost.png",
+    "mse_k": "results\\figures\\Days19-22_fig4_mse_vs_k.png",
+    "pareto": "results\\figures\\Days19-22_fig5_pareto_front.png",
+    "hypervolume": "results\\figures\\Days19-22_hypervolume_bar.png",
+    "objectives": "results\\figures\\Days19-22_objectives_summary.png"
+  }
+}

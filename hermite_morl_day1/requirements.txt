@@ -6,3 +6,4 @@ Pillow>=10.0
 PyYAML>=6.0
 gymnasium>=0.29
 torch>=2.0
+tabulate=0.10.0

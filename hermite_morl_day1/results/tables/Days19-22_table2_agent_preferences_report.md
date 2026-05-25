@@ -1,0 +1,7 @@
+| method       |   preference_id | preference_name   | preference              |   mse_mean |   ssim_mean |   k_mean |   cost_mean | common_components   |
+|:-------------|----------------:|:------------------|:------------------------|-----------:|------------:|---------:|------------:|:--------------------|
+| Envelope-DQN |               0 | high_fidelity     | 0.550 0.250 0.100 0.100 |     0.0023 |      0.8604 |      2   |        0.2  | H00 H11             |
+| Envelope-DQN |               1 | mse_ssim_balance  | 0.350 0.350 0.150 0.150 |     0.0024 |      0.8551 |      1.9 |        0.19 | H00 H11             |
+| Envelope-DQN |               2 | general_balance   | 0.250 0.250 0.250 0.250 |     0.0038 |      0.7527 |      1   |        0.1  | H00                 |
+| Envelope-DQN |               3 | compact           | 0.200 0.200 0.300 0.300 |     0.0038 |      0.7527 |      1   |        0.1  | H00                 |
+| Envelope-DQN |               4 | very_compact      | 0.150 0.150 0.350 0.350 |     0.0038 |      0.7527 |      1   |        0.1  | H00                 |
