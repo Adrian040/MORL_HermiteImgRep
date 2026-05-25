@@ -1,0 +1,30 @@
+ablation:
+  orders: [2, 3]
+  workspace_root: results/Days19-22_ablation
+  clean_workspaces: false
+  train_agent: true
+  skip_agent_eval: false
+  hv_samples: 50000
+  dataset:
+    raw_dir: data/raw
+    use_skimage_if_empty: true
+    image_size: 64
+    train_images: 40
+    val_images: 10
+    test_images: 10
+  training:
+    episodes: 3000
+    batch_size: 64
+    replay_size: 50000
+    gamma: 0.95
+    lr: 0.001
+    hidden_dim: 128
+    warmup_steps: 128
+    target_update_every: 250
+    eval_every: 250
+    eval_max_images: null
+    epsilon_start: 1.0
+    epsilon_end: 0.05
+    epsilon_decay_steps: 3000
+    use_envelope_target: true
+    device: auto

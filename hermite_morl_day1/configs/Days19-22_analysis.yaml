@@ -1,0 +1,6 @@
+analysis:
+  input_csv: results/tables/Days15-18_all_methods_by_image.csv
+  output_root: results
+  prefix: Days19-22
+  hv_samples: 100000
+  decimals: 4

@@ -1,0 +1,30 @@
+ablation:
+  orders: [2, 3]
+  workspace_root: results/Days19-22_ablation_smoke
+  clean_workspaces: true
+  train_agent: false
+  skip_agent_eval: true
+  hv_samples: 10000
+  dataset:
+    raw_dir: data/raw/Days19-22_cifar_smoke
+    use_skimage_if_empty: true
+    image_size: 32
+    train_images: 6
+    val_images: 3
+    test_images: 3
+  training:
+    episodes: 8
+    batch_size: 8
+    replay_size: 1000
+    gamma: 0.95
+    lr: 0.001
+    hidden_dim: 64
+    warmup_steps: 8
+    target_update_every: 20
+    eval_every: 4
+    eval_max_images: 2
+    epsilon_start: 1.0
+    epsilon_end: 0.1
+    epsilon_decay_steps: 40
+    use_envelope_target: true
+    device: cpu

@@ -1,0 +1,18 @@
+{
+  "input_csv": "results/tables/Days15-18_all_methods_by_image.csv",
+  "mse_reference": 0.202738881111145,
+  "n_rows": 105,
+  "n_pareto_global": 39,
+  "objective_space": "results/tables/Days19-22_cifar_smoke_objective_space.csv",
+  "pareto_front_global": "results/tables/Days19-22_cifar_smoke_pareto_front_global.csv",
+  "pareto_front_by_method": "results/tables/Days19-22_cifar_smoke_pareto_front_by_method.csv",
+  "hypervolume_summary": "results/tables/Days19-22_cifar_smoke_hypervolume_summary.csv",
+  "method_summary": "results/tables/Days19-22_cifar_smoke_method_summary.csv",
+  "figures": {
+    "quality_cost": "results/figures/Days19-22_cifar_smoke_fig3_quality_cost.png",
+    "mse_k": "results/figures/Days19-22_cifar_smoke_fig4_mse_vs_k.png",
+    "pareto": "results/figures/Days19-22_cifar_smoke_fig5_pareto_front.png",
+    "hypervolume": "results/figures/Days19-22_cifar_smoke_hypervolume_bar.png",
+    "objectives": "results/figures/Days19-22_cifar_smoke_objectives_summary.png"
+  }
+}

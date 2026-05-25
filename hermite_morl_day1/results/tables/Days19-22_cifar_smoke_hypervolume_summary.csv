@@ -1,0 +1,10 @@
+method,n_solutions,n_pareto_global,n_pareto_by_method,hv_4d,hv_4d_method,hv_2d_quality_parsimony
+energy,18,9,12,0.664,monte_carlo,0.8075604594773678
+greedy,18,11,12,0.6646,monte_carlo,0.8086956165054964
+random,54,11,12,0.6572,monte_carlo,0.8026519642529286
+top_1,3,2,2,0.6396,monte_carlo,0.769241646968225
+top_2,3,2,2,0.4222,monte_carlo,0.6448758987515166
+top_3,3,0,2,0.2372,monte_carlo,0.4898933297871838
+top_5,3,2,2,0.0274,monte_carlo,0.16501874385559573
+top_6,3,2,2,0.0,monte_carlo,0.0
+GLOBAL,105,39,46,0.6646,monte_carlo,0.8086956165054964

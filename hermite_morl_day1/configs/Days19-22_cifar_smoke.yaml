@@ -1,0 +1,40 @@
+project_root: .
+seed: 0
+
+dataset:
+  raw_dir: data/raw/Days19-22_cifar_smoke
+  use_skimage_if_empty: false
+  image_size: 32
+  train_images: 6
+  val_images: 3
+  test_images: 3
+
+hermite:
+  max_order: 2
+  sigma: 1.5
+  kernel_size: 7
+
+evaluation:
+  ks: [1, 2, 3, 5, 6]
+
+env:
+  max_steps: 6
+  reward_dim: 4
+  calibrated_reconstruction: true
+  repeated_action_penalty: 0.05
+  terminate_on_repeated_action: false
+  random_episode_steps: 7
+
+baselines:
+  split: test
+  random_repeats: 3
+  topk_budgets: [1, 2, 3, 5, 6]
+  greedy_alpha: 0.5
+  greedy_beta: 0.5
+  greedy_lambda_cost: 0.1
+  save_reconstructions: true
+  max_visual_examples: 2
+
+agent:
+  checkpoint: results/checkpoints/Days9-14_best_envelope_dqn.pt
+  evaluate_if_available: false
