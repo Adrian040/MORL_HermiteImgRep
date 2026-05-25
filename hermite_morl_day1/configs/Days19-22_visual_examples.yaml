@@ -1,0 +1,19 @@
+project_root: .
+seed: 0
+
+dataset:
+  image_size: 64
+
+hermite:
+  max_order: 3
+  sigma: 1.5
+  kernel_size: 11
+
+visual_examples:
+  fig6_images: 3
+  fig6_k: 5
+  compact_k: 3
+  balanced_k: 5
+  high_fidelity_k: null
+  agent_checkpoint: results/checkpoints/Days9-14_best_envelope_dqn.pt
+  require_agent: false

@@ -1,0 +1,10 @@
+{
+  "dataset_source": "skimage_cifar_like_fallback",
+  "max_order": 3,
+  "sigma": 1.5,
+  "kernel_size": 11,
+  "image_size": 64,
+  "fig2": "results\\figures\\Days19-22_fig2_selection_example.png",
+  "fig6": "results\\figures\\Days19-22_fig6_method_comparison.png",
+  "metadata": "results\\tables\\Days19-22_visual_examples_metadata.csv"
+}
