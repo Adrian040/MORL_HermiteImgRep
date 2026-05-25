@@ -1,0 +1,16 @@
+{
+  "state_dim": 16,
+  "reward_dim": 4,
+  "n_actions": 7,
+  "n_components": 6,
+  "episodes": 12,
+  "device": "cpu",
+  "best_score": 0.6445007631907889,
+  "outputs": {
+    "training_log": "results\\tables\\Days9-14_training_log.csv",
+    "eval_summary": "results\\tables\\Days9-14_eval_summary.csv",
+    "final_checkpoint": "results\\checkpoints\\Days9-14_final_envelope_dqn.pt",
+    "best_checkpoint": "results\\checkpoints\\Days9-14_best_envelope_dqn.pt",
+    "training_curves": "results\\figures\\Days9-14_training_curves.png"
+  }
+}
