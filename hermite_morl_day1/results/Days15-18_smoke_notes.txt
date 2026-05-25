@@ -1,0 +1,10 @@
+Smoke run executed with:
+python tests/test_Days15_18_baselines.py
+python scripts/run_Days15_18_baselines.py --config configs/Days15-18_smoke.yaml --skip-agent
+
+The included CSV/PNG results are reference outputs from the smoke configuration:
+- image_size=32
+- max_order=2
+- test_images=3
+- random_repeats=3
+- agent evaluation skipped because no checkpoint was provided.

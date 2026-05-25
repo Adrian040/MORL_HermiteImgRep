@@ -9,7 +9,11 @@ from .env_utils import build_representation_from_config
 
 
 def make_selection_env_from_images(images: np.ndarray, config: Dict, split: str = "train") -> HermiteSelectionEnv:
-    """Construye el ambiente Days5-8 existente sin reemplazar su API."""
+    """Construye el ambiente existente sin reemplazar su API.
+
+    Se conserva `repeated_action_penalty` como magnitud positiva, consistente
+    con la implementación de Days5-8.
+    """
     representation = build_representation_from_config(config)
     env_cfg = config.get("env", {})
     seed_offset = 0 if split == "train" else 1000 if split == "val" else 2000
@@ -41,7 +45,7 @@ def env_valid_action_mask(env: HermiteSelectionEnv) -> np.ndarray:
         return valid
     if getattr(env, "state", None) is not None and hasattr(env.state, "mask"):
         valid = np.ones(env.n_actions, dtype=bool)
-        valid[:env.n_components] = np.asarray(env.state.mask) < 0.5
+        valid[: env.n_components] = np.asarray(env.state.mask) < 0.5
         valid[env.stop_action] = True
         return valid
     return np.ones(env.n_actions, dtype=bool)

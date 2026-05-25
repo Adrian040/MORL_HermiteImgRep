@@ -1,0 +1,50 @@
+project_root: .
+seed: 0
+
+dataset:
+  raw_dir: data/raw
+  use_skimage_if_empty: true
+  image_size: 32
+  train_images: 6
+  val_images: 3
+  test_images: 3
+
+hermite:
+  max_order: 2
+  sigma: 1.5
+  kernel_size: 7
+
+evaluation:
+  ks: [1, 3, 6]
+
+env:
+  max_steps: 6
+  reward_dim: 4
+  calibrated_reconstruction: true
+  repeated_action_penalty: 0.05
+  terminate_on_repeated_action: false
+  random_episode_steps: 7
+
+training:
+  hidden_dim: 64
+  preferences:
+    - [0.55, 0.25, 0.10, 0.10]
+    - [0.35, 0.35, 0.15, 0.15]
+    - [0.25, 0.25, 0.25, 0.25]
+    - [0.20, 0.20, 0.30, 0.30]
+    - [0.15, 0.15, 0.35, 0.35]
+
+baselines:
+  split: test
+  ks: [1, 2, 3, 4, 5, 6]
+  topk_budgets: [1, 2, 3, 5, 6]
+  random_repeats: 3
+  greedy_alpha: 0.5
+  greedy_beta: 0.5
+  greedy_lambda: 0.1
+  eval_agent: false
+  agent_checkpoint: results/checkpoints/Days9-14_best_envelope_dqn.pt
+  agent_device: cpu
+  agent_max_images: 2
+  visual_image_id: 0
+  visual_k: 3

@@ -1,0 +1,17 @@
+{
+  "split": "test",
+  "n_images": 3,
+  "n_components": 6,
+  "n_actions": 7,
+  "random_repeats": 3,
+  "agent_evaluated": false,
+  "outputs": {
+    "baselines_by_image": "results/tables/Days15-18_baselines_by_image.csv",
+    "baselines_summary": "results/tables/Days15-18_baselines_summary.csv",
+    "all_methods_by_image": "results/tables/Days15-18_all_methods_by_image.csv",
+    "all_methods_summary": "results/tables/Days15-18_all_methods_summary.csv",
+    "ssim_curve": "results/figures/Days15-18_ssim_vs_k_baselines.png",
+    "mse_curve": "results/figures/Days15-18_mse_vs_k_baselines.png",
+    "visual_comparison": "results/figures/Days15-18_visual_baseline_comparison.png"
+  }
+}
