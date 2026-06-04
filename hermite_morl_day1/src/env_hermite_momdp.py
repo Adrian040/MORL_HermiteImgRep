@@ -50,6 +50,8 @@ class HermiteEnvState:
     reconstruction: np.ndarray
     current_mse: float
     current_ssim: float
+    initial_mse: float
+    initial_ssim: float
     cost: float
     k_norm: float
     steps: int
@@ -70,6 +72,10 @@ class HermiteSelectionEnv(gym.Env):
         calibrated_reconstruction: bool = True,
         repeated_action_penalty: float = 0.05,
         terminate_on_repeated_action: bool = False,
+        detail_only: bool = True,
+        base_component_labels: Optional[Sequence[str]] = None,
+        reward_normalization: bool = True,
+        reward_eps: float = 1e-8,
         seed: Optional[int] = None,
     ) -> None:
         super().__init__()
@@ -89,6 +95,9 @@ class HermiteSelectionEnv(gym.Env):
         self.calibrated_reconstruction = bool(calibrated_reconstruction)
         self.repeated_action_penalty = float(repeated_action_penalty)
         self.terminate_on_repeated_action = bool(terminate_on_repeated_action)
+        self.detail_only = bool(detail_only)
+        self.reward_normalization = bool(reward_normalization)
+        self.reward_eps = float(reward_eps)
 
         if component_costs is None:
             component_costs = np.ones(self.n_components, dtype=np.float32)
@@ -113,6 +122,17 @@ class HermiteSelectionEnv(gym.Env):
         self.state: Optional[HermiteEnvState] = None
         self.components = self.representation.filter_bank.components
         self.action_labels = component_labels(self.components) + ["STOP"]
+        labels = self.action_labels[: self.n_components]
+        requested_base_labels = list(base_component_labels) if base_component_labels is not None else ["H00"]
+        self.base_indices = [
+            labels.index(label)
+            for label in requested_base_labels
+            if label in labels
+        ] if self.detail_only else []
+        self.base_labels = [labels[i] for i in self.base_indices]
+        self.max_effective_components = max(1, self.n_components - len(self.base_indices))
+        self.detail_max_cost = float(np.sum(np.delete(self.component_costs, self.base_indices))) if self.base_indices else self.max_cost
+        self.detail_max_cost = self.detail_max_cost if self.detail_max_cost > 0 else self.max_cost
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:
@@ -126,7 +146,18 @@ class HermiteSelectionEnv(gym.Env):
         image = self.images[image_index]
         analysis = self.representation.analyze(image)
         mask = np.zeros(self.n_components, dtype=np.float32)
-        reconstruction = np.zeros_like(image, dtype=np.float32)
+        if self.detail_only and self.base_indices:
+            mask[np.asarray(self.base_indices, dtype=int)] = 1.0
+            reconstruction = self.representation.reconstruct(
+                image,
+                analysis.coefficients,
+                self.base_indices,
+                calibrated=self.calibrated_reconstruction,
+            )
+        else:
+            reconstruction = np.zeros_like(image, dtype=np.float32)
+        initial_mse = mse(image, reconstruction)
+        initial_ssim = ssim(image, reconstruction)
 
         self.state = HermiteEnvState(
             image_index=image_index,
@@ -134,10 +165,12 @@ class HermiteSelectionEnv(gym.Env):
             analysis=analysis,
             mask=mask,
             reconstruction=reconstruction,
-            current_mse=mse(image, reconstruction),
-            current_ssim=ssim(image, reconstruction),
-            cost=0.0,
-            k_norm=0.0,
+            current_mse=initial_mse,
+            current_ssim=initial_ssim,
+            initial_mse=initial_mse,
+            initial_ssim=initial_ssim,
+            cost=self._compute_cost(mask),
+            k_norm=self._compute_k_norm(mask),
             steps=0,
         )
         return self._get_obs(), self._get_info(event="reset")
@@ -163,7 +196,7 @@ class HermiteSelectionEnv(gym.Env):
         old_mse = self.state.current_mse
         old_ssim = self.state.current_ssim
         old_cost = self.state.cost
-        old_k_norm = self.state.k_norm
+        old_k_norm = self._compute_k_norm(self.state.mask)
 
         self.state.mask[action] = 1.0
         selected = np.where(self.state.mask.astype(bool))[0].tolist()
@@ -176,7 +209,7 @@ class HermiteSelectionEnv(gym.Env):
         new_mse = mse(self.state.image, reconstruction)
         new_ssim = ssim(self.state.image, reconstruction)
         new_cost = self._compute_cost(self.state.mask)
-        new_k_norm = float(np.sum(self.state.mask) / self.n_components)
+        new_k_norm = self._compute_k_norm(self.state.mask)
 
         self.state.reconstruction = reconstruction
         self.state.current_mse = new_mse
@@ -185,19 +218,41 @@ class HermiteSelectionEnv(gym.Env):
         self.state.k_norm = new_k_norm
         self.state.steps += 1
 
+        if self.reward_normalization:
+            delta_mse = (old_mse - new_mse) / max(self.state.initial_mse, self.reward_eps)
+            delta_ssim = (new_ssim - old_ssim) / max(1.0 - self.state.initial_ssim, self.reward_eps)
+        else:
+            delta_mse = old_mse - new_mse
+            delta_ssim = new_ssim - old_ssim
         reward = np.asarray([
-            old_mse - new_mse,
-            new_ssim - old_ssim,
+            delta_mse,
+            delta_ssim,
             -(new_cost - old_cost),
             -(new_k_norm - old_k_norm),
         ], dtype=np.float32)
 
-        terminated = bool(self.state.steps >= self.max_steps or np.all(self.state.mask > 0.5))
+        terminated = bool(self.state.steps >= self.max_steps or len(self._detail_indices(self.state.mask)) >= self.max_effective_components)
         return self._get_obs(), reward, terminated, False, self._get_info(action, event="select_component")
 
     def _compute_cost(self, mask: np.ndarray) -> float:
-        used_cost = float(np.sum(self.component_costs * mask))
-        return used_cost / self.max_cost if self.max_cost > 0 else 0.0
+        effective_mask = np.asarray(mask, dtype=np.float32).copy()
+        if self.detail_only and self.base_indices:
+            effective_mask[np.asarray(self.base_indices, dtype=int)] = 0.0
+            max_cost = self.detail_max_cost
+        else:
+            max_cost = self.max_cost
+        used_cost = float(np.sum(self.component_costs * effective_mask))
+        return used_cost / max_cost if max_cost > 0 else 0.0
+
+    def _detail_indices(self, mask: np.ndarray) -> list[int]:
+        selected = np.where(np.asarray(mask).astype(bool))[0].astype(int).tolist()
+        if not (self.detail_only and self.base_indices):
+            return selected
+        base = set(self.base_indices)
+        return [i for i in selected if i not in base]
+
+    def _compute_k_norm(self, mask: np.ndarray) -> float:
+        return float(len(self._detail_indices(mask)) / self.max_effective_components)
 
     def _get_obs(self) -> np.ndarray:
         if self.state is None:
@@ -215,6 +270,10 @@ class HermiteSelectionEnv(gym.Env):
         if self.state is None:
             return {}
         selected = np.where(self.state.mask.astype(bool))[0].tolist()
+        detail_selected = self._detail_indices(self.state.mask)
+        k_total = int(len(selected))
+        k_effective = int(len(detail_selected))
+        k_norm_effective = self._compute_k_norm(self.state.mask)
         return {
             "event": event,
             "image_index": self.state.image_index,
@@ -222,9 +281,18 @@ class HermiteSelectionEnv(gym.Env):
             "action_label": None if action is None else self.action_labels[int(action)],
             "mse": float(self.state.current_mse),
             "ssim": float(self.state.current_ssim),
+            "initial_mse": float(self.state.initial_mse),
+            "initial_ssim": float(self.state.initial_ssim),
             "cost": float(self.state.cost),
-            "k": int(np.sum(self.state.mask)),
-            "k_norm": float(self.state.k_norm),
+            "k": k_effective,
+            "k_norm": k_norm_effective,
+            "base_indices": list(self.base_indices),
+            "base_labels": list(self.base_labels),
+            "selected_detail_indices": detail_selected,
+            "selected_detail_labels": [self.action_labels[i] for i in detail_selected],
+            "k_total": k_total,
+            "k_effective": k_effective,
+            "k_norm_effective": k_norm_effective,
             "selected_indices": selected,
             "selected_labels": [self.action_labels[i] for i in selected],
             "mask": self.state.mask.copy(),
@@ -233,7 +301,7 @@ class HermiteSelectionEnv(gym.Env):
                 -self.state.current_mse,
                 self.state.current_ssim,
                 -self.state.cost,
-                -self.state.k_norm,
+                -k_norm_effective,
             ], dtype=np.float32),
         }
 
@@ -241,6 +309,9 @@ class HermiteSelectionEnv(gym.Env):
         if self.state is None:
             return list(range(self.n_actions)) if include_stop else list(range(self.n_components))
         unused = np.where(self.state.mask < 0.5)[0].astype(int).tolist()
+        if self.detail_only and self.base_indices:
+            base = set(self.base_indices)
+            unused = [i for i in unused if i not in base]
         if include_stop:
             unused.append(self.stop_action)
         return unused

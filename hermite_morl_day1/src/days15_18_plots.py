@@ -7,6 +7,18 @@ import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 
+try:
+    _NUMPY_MAJOR = int(np.__version__.split(".", 1)[0])
+except Exception:
+    _NUMPY_MAJOR = 1
+
+try:
+    if _NUMPY_MAJOR >= 2:
+        raise ImportError("Skip matplotlib fallback under NumPy 2 runtime.")
+    import matplotlib.pyplot as plt
+except Exception:
+    plt = None
+
 from .baselines import _evaluate_selected, greedy_selection
 from .metrics import to_float01
 
@@ -26,33 +38,70 @@ def _scale(vals: np.ndarray) -> np.ndarray:
 def save_quality_cost_curve(summary: pd.DataFrame, output_path: str | Path, y_col: str = "ssim_mean") -> None:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    width, height, margin = 860, 520, 70
-    canvas = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(canvas)
-    font = _font(13)
-    small = _font(11)
-    draw.line((margin, height - margin, width - margin, height - margin), fill="black", width=2)
-    draw.line((margin, margin, margin, height - margin), fill="black", width=2)
-    draw.text((width // 2 - 80, height - 45), "K / presupuesto", fill="black", font=small)
-    draw.text((margin, 30), y_col, fill="black", font=small)
+    if plt is None:
+        width, height, margin = 860, 520, 70
+        canvas = Image.new("RGB", (width, height), "white")
+        draw = ImageDraw.Draw(canvas)
+        font = _font(13)
+        small = _font(11)
+        draw.line((margin, height - margin, width - margin, height - margin), fill="black", width=2)
+        draw.line((margin, margin, margin, height - margin), fill="black", width=2)
+        draw.text((width // 2 - 110, height - 45), "Effective K / budget", fill="black", font=small)
+        draw.text((margin, 30), y_col, fill="black", font=small)
+        methods = list(summary["method"].drop_duplicates())
+        for idx, method in enumerate(methods):
+            sub = summary[summary["method"] == method].sort_values("k_budget")
+            if sub.empty:
+                continue
+            xs = sub["k_budget"].to_numpy(dtype=float)
+            ys = sub[y_col].to_numpy(dtype=float)
+            x_plot = margin + _scale(xs) * (width - 2 * margin)
+            y_plot = height - margin - _scale(ys) * (height - 2 * margin)
+            points = list(map(tuple, np.stack([x_plot, y_plot], axis=1)))
+            if len(points) > 1:
+                draw.line(points, fill="black" if idx % 2 == 0 else "gray", width=2 + (idx % 2))
+            for x, y in points:
+                draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill="black" if idx % 2 == 0 else "gray")
+            draw.text((width - 260, margin + 22 * idx), str(method), fill="black" if idx % 2 == 0 else "gray", font=font)
+        canvas.save(output_path)
+        return
 
-    methods = list(summary["method"].drop_duplicates())
-    dash_patterns = [None, (5, 4), (2, 4), (8, 3), (1, 3)]
-    for idx, method in enumerate(methods):
+    fig, ax = plt.subplots(figsize=(7.2, 4.8))
+    markers = ["o", "s", "^", "D", "P"]
+    linestyles = ["-", "--", "-.", ":", (0, (4, 1, 1, 1))]
+    colors = {
+        "random": "#7f7f7f",
+        "top-k energy": "#1f77b4",
+        "greedy": "#d62728",
+        "Envelope-DQN": "#9467bd",
+    }
+    for idx, method in enumerate(summary["method"].drop_duplicates()):
         sub = summary[summary["method"] == method].sort_values("k_budget")
         if sub.empty:
             continue
-        xs = sub["k_budget"].to_numpy(dtype=float)
-        ys = sub[y_col].to_numpy(dtype=float)
-        x_plot = margin + _scale(xs) * (width - 2 * margin)
-        y_plot = height - margin - _scale(ys) * (height - 2 * margin)
-        points = list(map(tuple, np.stack([x_plot, y_plot], axis=1)))
-        if len(points) > 1:
-            draw.line(points, fill="black" if idx % 2 == 0 else "gray", width=2 + (idx % 2))
-        for x, y in points:
-            draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill="black" if idx % 2 == 0 else "gray")
-        draw.text((width - 260, margin + 22 * idx), method, fill="black" if idx % 2 == 0 else "gray", font=font)
-    canvas.save(output_path)
+        color = next((v for k, v in colors.items() if k.lower() in str(method).lower()), "#333333")
+        ax.plot(
+            sub["k_budget"],
+            sub[y_col],
+            marker=markers[idx % len(markers)],
+            linestyle=linestyles[idx % len(linestyles)],
+            linewidth=2.0,
+            markersize=5.5,
+            alpha=0.9,
+            color=color,
+            label=str(method),
+        )
+    ylabel = y_col.replace("_", " ")
+    ax.set_title(f"{ylabel} vs effective K", fontsize=13, fontweight="bold", pad=10)
+    ax.set_xlabel("Effective component budget K", fontsize=11)
+    ax.set_ylabel(ylabel, fontsize=11)
+    ax.grid(True, alpha=0.22, linewidth=0.6)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(frameon=True, fontsize=9, loc="best")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=260, bbox_inches="tight")
+    plt.close(fig)
 
 
 def _array_to_pil(image: np.ndarray, size: int = 180) -> Image.Image:
@@ -72,8 +121,7 @@ def save_visual_baseline_comparison(env, image_id: int, output_path: str | Path,
     selections = {
         "Original": [],
         f"Random k={k}": random_selected,
-        f"Energy k={k}": energy_order[:k],
-        f"Top-k k={k}": energy_order[:k],
+        f"Top-k energy k={k}": energy_order[:k],
         f"Greedy k={k}": greedy_selected[:k],
     }
     images = [image]

@@ -21,6 +21,10 @@ env:
   max_steps: 10
   reward_dim: 4
   calibrated_reconstruction: true
+  detail_only: true
+  base_component_labels: ["H00"]
+  reward_normalization: true
+  reward_eps: 1.0e-8
   repeated_action_penalty: 0.05
   terminate_on_repeated_action: false
   random_episode_steps: 11
@@ -37,7 +41,6 @@ training:
 baselines:
   split: test
   ks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-  topk_budgets: [1, 2, 3, 5, 7, 10]
   random_repeats: 20
   greedy_alpha: 0.5
   greedy_beta: 0.5

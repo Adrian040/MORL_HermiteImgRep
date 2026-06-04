@@ -17,6 +17,7 @@ import yaml
 
 from src.data_utils import prepare_dataset, save_processed_dataset
 from src.days9_14_env_adapter import env_state_dim, env_valid_action_mask, make_selection_env_from_images
+from src.metrics import edge_correlation
 from src.morl_envelope import (
     PreferenceSampler,
     ReplayBuffer,
@@ -96,8 +97,9 @@ def evaluate_policy(env, network: VectorQNetwork, preferences: np.ndarray, devic
                 "mse": float(info["mse"]),
                 "ssim": float(info["ssim"]),
                 "cost": float(info["cost"]),
-                "k_norm": float(info["k_norm"]),
+                "k_norm": float(info.get("k_norm_effective", info["k_norm"])),
             }
+            k_effective = int(info.get("k_effective", info["k"]))
             rows.append({
                 "preference_id": pref_idx,
                 "preference_name": names[pref_idx] if pref_idx < len(names) else f"w{pref_idx}",
@@ -105,13 +107,19 @@ def evaluate_policy(env, network: VectorQNetwork, preferences: np.ndarray, devic
                 "image_id": image_id,
                 "mse": metrics["mse"],
                 "ssim": metrics["ssim"],
-                "k": int(info["k"]),
+                "edge_corr": edge_correlation(env.images[image_id], info["reconstruction"]),
+                "k": k_effective,
+                "k_total": int(info.get("k_total", k_effective)),
+                "k_effective": k_effective,
                 "cost": metrics["cost"],
                 "k_norm": metrics["k_norm"],
+                "k_norm_effective": metrics["k_norm"],
                 "scalar_return": scalar_return,
                 "score": scalarized_score(metrics),
                 "selected_indices": " ".join(map(str, info["selected_indices"])),
                 "selected_labels": " ".join(info["selected_labels"]),
+                "selected_detail_indices": " ".join(map(str, info.get("selected_detail_indices", info["selected_indices"]))),
+                "selected_detail_labels": " ".join(info.get("selected_detail_labels", info["selected_labels"])),
                 "actions": " ".join(map(str, actions)),
             })
     return pd.DataFrame(rows)
@@ -210,7 +218,8 @@ def train(config: dict) -> Dict:
             "loss": float(np.mean(losses)) if losses else np.nan,
             "mse": float(info["mse"]),
             "ssim": float(info["ssim"]),
-            "k": int(info["k"]),
+            "k": int(info.get("k_effective", info["k"])),
+            "k_effective": int(info.get("k_effective", info["k"])),
             "cost": float(info["cost"]),
             "actions": " ".join(map(str, actions)),
         }
@@ -251,7 +260,9 @@ def train(config: dict) -> Dict:
     summary = final_eval.groupby(["preference_id", "preference_name", "preference"]).agg(
         mse=("mse", "mean"),
         ssim=("ssim", "mean"),
+        edge_corr=("edge_corr", "mean"),
         k=("k", "mean"),
+        k_effective=("k_effective", "mean"),
         cost=("cost", "mean"),
         scalar_return=("scalar_return", "mean"),
         score=("score", "mean"),

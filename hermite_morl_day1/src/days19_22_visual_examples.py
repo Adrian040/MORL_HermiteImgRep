@@ -250,9 +250,9 @@ def save_fig2_selection_example(
     gs = fig.add_gridspec(2, 4, height_ratios=[3.15, 1.50], hspace=0.36, wspace=0.08)
     panels = [
         (image, "Original", None),
-        (rec_high, "Alta fidelidad" if high_is_agent else "Alta fidelidad\n(fallback energy)", met_high),
+        (rec_high, "Alta fidelidad" if high_is_agent else "Alta fidelidad\n(fallback top-k energy)", met_high),
         (rec_bal, "Balanceada" if bal_is_agent else "Balanceada\n(fallback greedy)", met_bal),
-        (rec_comp, "Compacta" if comp_is_agent else "Compacta\n(fallback energy)", met_comp),
+        (rec_comp, "Compacta" if comp_is_agent else "Compacta\n(fallback top-k energy)", met_comp),
     ]
     for i, (img, title, metrics) in enumerate(panels):
         ax = fig.add_subplot(gs[0, i])

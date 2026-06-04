@@ -24,6 +24,10 @@ def make_selection_env_from_images(images: np.ndarray, config: Dict, split: str 
         calibrated_reconstruction=bool(env_cfg.get("calibrated_reconstruction", True)),
         repeated_action_penalty=abs(float(env_cfg.get("repeated_action_penalty", 0.05))),
         terminate_on_repeated_action=bool(env_cfg.get("terminate_on_repeated_action", False)),
+        detail_only=bool(env_cfg.get("detail_only", True)),
+        base_component_labels=env_cfg.get("base_component_labels", ["H00"]),
+        reward_normalization=bool(env_cfg.get("reward_normalization", True)),
+        reward_eps=float(env_cfg.get("reward_eps", 1e-8)),
         seed=int(config.get("seed", 0)) + seed_offset,
     )
 

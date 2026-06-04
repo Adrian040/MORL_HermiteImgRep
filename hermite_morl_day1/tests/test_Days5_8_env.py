@@ -23,7 +23,8 @@ def main() -> None:
     assert env.stop_action == env.n_components
     assert info["k"] == 0
 
-    obs, reward, terminated, truncated, info = env.step(0)
+    first_action = env.get_valid_actions(include_stop=False)[0]
+    obs, reward, terminated, truncated, info = env.step(first_action)
     assert reward.shape == (4,)
     assert np.all(np.isfinite(reward))
     assert info["event"] == "select_component"
@@ -31,7 +32,7 @@ def main() -> None:
     assert np.isfinite(info["mse"])
     assert np.isfinite(info["ssim"])
 
-    obs, reward, terminated, truncated, info = env.step(0)
+    obs, reward, terminated, truncated, info = env.step(first_action)
     assert info["event"] == "repeated_action"
     assert reward.shape == (4,)
 

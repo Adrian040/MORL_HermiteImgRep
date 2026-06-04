@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .baselines import _component_labels, _cost_from_selected, summarize_results
+from .metrics import edge_correlation
 
 
 def _checkpoint_exists(path: str | Path | None) -> bool:
@@ -49,8 +50,9 @@ def evaluate_agent_policy(env, checkpoint_path: str | Path | None, config: dict,
                 state, reward, done, truncated, info = env.step(action)
                 actions.append(action)
             selected = info["selected_indices"]
-            k = int(info["k"])
+            k = int(info.get("k_effective", info["k"]))
             cost = float(info["cost"])
+            edge_value = edge_correlation(env.images[image_id], info["reconstruction"])
             rows.append({
                 "method": "Envelope-DQN",
                 "preference_id": int(pref_id),
@@ -59,16 +61,22 @@ def evaluate_agent_policy(env, checkpoint_path: str | Path | None, config: dict,
                 "image_id": int(image_id),
                 "k_budget": k,
                 "k": k,
+                "k_total": int(info.get("k_total", len(selected))),
+                "k_effective": k,
                 "cost": cost,
-                "k_norm": float(info["k_norm"]),
+                "k_norm": float(info.get("k_norm_effective", info["k_norm"])),
+                "k_norm_effective": float(info.get("k_norm_effective", info["k_norm"])),
                 "mse": float(info["mse"]),
                 "ssim": float(info["ssim"]),
+                "edge_corr": edge_value,
                 "obj_mse": float(1.0 - min(1.0, float(info["mse"]))),
                 "obj_ssim": float(info["ssim"]),
                 "obj_cost": float(1.0 - cost),
-                "obj_k": float(1.0 - float(info["k_norm"])),
+                "obj_k": float(1.0 - float(info.get("k_norm_effective", info["k_norm"]))),
                 "selected_indices": " ".join(map(str, selected)),
                 "selected_labels": " ".join(info["selected_labels"]),
+                "selected_detail_indices": " ".join(map(str, info.get("selected_detail_indices", selected))),
+                "selected_detail_labels": " ".join(info.get("selected_detail_labels", info["selected_labels"])),
                 "actions": " ".join(map(str, actions)),
             })
     return pd.DataFrame(rows)

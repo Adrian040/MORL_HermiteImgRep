@@ -48,10 +48,9 @@ def main() -> None:
 
     max_k = env.n_components
     ks = baseline_cfg.get("ks", list(range(1, max_k + 1)))
-    topk_budgets = baseline_cfg.get("topk_budgets", [1, 2, 3, 5, 7, max_k])
     cfg = BaselineConfig(
         ks=_parse_int_list(ks),
-        topk_budgets=_parse_int_list(topk_budgets),
+        topk_budgets=[],
         random_repeats=int(baseline_cfg.get("random_repeats", 20)),
         greedy_alpha=float(baseline_cfg.get("greedy_alpha", 0.5)),
         greedy_beta=float(baseline_cfg.get("greedy_beta", 0.5)),
@@ -63,9 +62,13 @@ def main() -> None:
     baseline_df.to_csv(tables_dir / "Days15-18_baselines_by_image.csv", index=False)
     baseline_summary.to_csv(tables_dir / "Days15-18_baselines_summary.csv", index=False)
 
-    for method in ["random", "energy", "greedy"]:
-        baseline_df[baseline_df["method"] == method].to_csv(tables_dir / f"Days15-18_{method}_baseline.csv", index=False)
-    baseline_df[baseline_df["method"].str.startswith("top_")].to_csv(tables_dir / "Days15-18_topk_baseline.csv", index=False)
+    method_files = {
+        "random": "Days15-18_random_baseline.csv",
+        "top-k energy": "Days15-18_top_k_energy_baseline.csv",
+        "greedy": "Days15-18_greedy_baseline.csv",
+    }
+    for method, filename in method_files.items():
+        baseline_df[baseline_df["method"] == method].to_csv(tables_dir / filename, index=False)
 
     agent_df = pd.DataFrame()
     checkpoint_path = args.agent_checkpoint or baseline_cfg.get("agent_checkpoint", "results/checkpoints/Days9-14_best_envelope_dqn.pt")

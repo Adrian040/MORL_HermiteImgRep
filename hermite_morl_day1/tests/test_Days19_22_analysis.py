@@ -21,7 +21,7 @@ from src.days19_22_analysis import (
 
 def main() -> None:
     df = pd.DataFrame({
-        "method": ["random", "random", "energy", "greedy", "Envelope-DQN"],
+        "method": ["random", "random", "top-k energy", "greedy", "Envelope-DQN"],
         "image_id": [0, 1, 0, 0, 0],
         "k": [1, 2, 2, 3, 2],
         "cost": [0.1, 0.2, 0.2, 0.3, 0.2],

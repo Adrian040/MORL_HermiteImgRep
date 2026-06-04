@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.ndimage import sobel
 from skimage.metrics import structural_similarity
 
 
@@ -29,3 +30,26 @@ def ssim(image: np.ndarray, reconstruction: np.ndarray) -> float:
         np.asarray(reconstruction, dtype=np.float32),
         data_range=1.0,
     ))
+
+
+def edge_correlation(image: np.ndarray, reconstruction: np.ndarray, eps: float = 1e-8) -> float:
+    image = np.asarray(image, dtype=np.float32)
+    reconstruction = np.asarray(reconstruction, dtype=np.float32)
+
+    def _gradient_magnitude(arr: np.ndarray) -> np.ndarray:
+        gx = sobel(arr, axis=1, mode="reflect")
+        gy = sobel(arr, axis=0, mode="reflect")
+        return np.sqrt(gx * gx + gy * gy).astype(np.float32)
+
+    edges_a = _gradient_magnitude(image).ravel()
+    edges_b = _gradient_magnitude(reconstruction).ravel()
+    std_a = float(np.std(edges_a))
+    std_b = float(np.std(edges_b))
+    if std_a < eps and std_b < eps:
+        return 1.0
+    if std_a < eps or std_b < eps:
+        return 0.0
+    corr = float(np.corrcoef(edges_a, edges_b)[0, 1])
+    if not np.isfinite(corr):
+        return 0.0
+    return float(np.clip(corr, -1.0, 1.0))

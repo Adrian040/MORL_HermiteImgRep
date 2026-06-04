@@ -12,6 +12,7 @@ import pandas as pd
 
 from src.days19_22_analysis import run_days19_22_analysis
 from src.days19_22_plots import save_all_report_figures
+from src.env_utils import load_config
 
 
 def main() -> None:
@@ -23,6 +24,7 @@ def main() -> None:
     parser.add_argument("--hv-samples", type=int, default=100000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--decimals", type=int, default=4)
+    parser.add_argument("--config", type=str, default="configs/default.yaml")
     args = parser.parse_args()
 
     input_csv = Path(args.input_csv)
@@ -40,6 +42,12 @@ def main() -> None:
         seed=args.seed,
         decimals=args.decimals,
     )
+    config = load_config(args.config)
+    env_cfg = config.get("env", {})
+    manifest["detail_only"] = bool(env_cfg.get("detail_only", True))
+    manifest["reward_normalization"] = bool(env_cfg.get("reward_normalization", True))
+    manifest["base_component_labels"] = env_cfg.get("base_component_labels", ["H00"])
+    manifest["config"] = args.config
 
     tables_dir = Path(args.output_root) / "tables"
     figures_dir = Path(args.output_root) / "figures"

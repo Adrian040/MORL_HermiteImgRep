@@ -1,6 +1,9 @@
 project_root: .
 seed: 0
 
+experiment:
+  seeds: [0, 1, 2, 3, 4]
+
 dataset:
   raw_dir: data/raw
   use_skimage_if_empty: true
@@ -21,6 +24,10 @@ env:
   max_steps: 10
   reward_dim: 4
   calibrated_reconstruction: true
+  detail_only: true
+  base_component_labels: ["H00"]
+  reward_normalization: true
+  reward_eps: 1.0e-8
   repeated_action_penalty: 0.05
   terminate_on_repeated_action: false
   random_episode_steps: 11

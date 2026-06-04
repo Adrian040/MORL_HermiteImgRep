@@ -34,7 +34,8 @@ def main() -> None:
         assert not df.empty
         assert np.isfinite(df.select_dtypes(include=[float, int]).to_numpy()).all()
     assert set(["mse", "ssim", "k", "cost", "selected_indices"]).issubset(all_df.columns)
-    assert summary["method"].nunique() >= 4
+    assert "top-k energy" in set(all_df["method"])
+    assert summary["method"].nunique() >= 3
     print("Pruebas Days15-18 de baselines completadas correctamente.")
 
 

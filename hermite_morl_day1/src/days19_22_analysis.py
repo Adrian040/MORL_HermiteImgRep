@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 OBJECTIVE_COLUMNS = ["obj_mse", "obj_ssim", "obj_cost", "obj_k"]
-METRIC_COLUMNS = ["mse", "ssim", "k", "cost", "k_norm"]
+METRIC_COLUMNS = ["mse", "ssim", "edge_corr", "k", "k_effective", "cost", "k_norm", "k_norm_effective"]
 
 
 def ensure_objective_columns(df: pd.DataFrame, mse_reference: float | None = None) -> tuple[pd.DataFrame, float]:
@@ -17,6 +17,12 @@ def ensure_objective_columns(df: pd.DataFrame, mse_reference: float | None = Non
     if "k_norm" not in df.columns and "k" in df.columns:
         max_k = float(df["k"].max()) if float(df["k"].max()) > 0 else 1.0
         df["k_norm"] = df["k"] / max_k
+    if "k_effective" not in df.columns and "k" in df.columns:
+        df["k_effective"] = df["k"]
+    if "k_norm_effective" not in df.columns and "k_norm" in df.columns:
+        df["k_norm_effective"] = df["k_norm"]
+    if "edge_corr" not in df.columns:
+        df["edge_corr"] = np.nan
     if "cost" not in df.columns and "k_norm" in df.columns:
         df["cost"] = df["k_norm"]
 
@@ -151,8 +157,12 @@ def build_method_summary(df: pd.DataFrame, hv_summary: pd.DataFrame | None = Non
         mse_std=("mse", "std"),
         ssim_mean=("ssim", "mean"),
         ssim_std=("ssim", "std"),
+        edge_corr_mean=("edge_corr", "mean"),
+        edge_corr_std=("edge_corr", "std"),
         k_mean=("k", "mean"),
         k_std=("k", "std"),
+        k_effective_mean=("k_effective", "mean"),
+        k_effective_std=("k_effective", "std"),
         cost_mean=("cost", "mean"),
         cost_std=("cost", "std"),
         obj_mse_mean=("obj_mse", "mean"),
@@ -177,9 +187,15 @@ def build_preference_summary(df: pd.DataFrame) -> pd.DataFrame:
         group_cols = ["method"]
     summary = pref_like.groupby(group_cols).agg(
         mse_mean=("mse", "mean"),
+        mse_std=("mse", "std"),
         ssim_mean=("ssim", "mean"),
+        ssim_std=("ssim", "std"),
+        edge_corr_mean=("edge_corr", "mean"),
+        edge_corr_std=("edge_corr", "std"),
         k_mean=("k", "mean"),
+        k_effective_mean=("k_effective", "mean"),
         cost_mean=("cost", "mean"),
+        cost_std=("cost", "std"),
         common_components=("selected_labels", lambda x: most_common_nonempty(x)),
     ).reset_index()
     return summary
