@@ -66,41 +66,69 @@ def save_quality_cost_curve(summary: pd.DataFrame, output_path: str | Path, y_co
         canvas.save(output_path)
         return
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.8))
+    fig, ax = plt.subplots(figsize=(8.4, 5.2))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
     markers = ["o", "s", "^", "D", "P"]
-    linestyles = ["-", "--", "-.", ":", (0, (4, 1, 1, 1))]
+    linestyles = ["-", "--", "-.", ":", (0, (5, 2))]
     colors = {
-        "random": "#7f7f7f",
-        "top-k energy": "#1f77b4",
-        "greedy": "#d62728",
-        "Envelope-DQN": "#9467bd",
+        "random": "#6B6B6B",
+        "top-k energy": "#1F77B4",
+        "greedy": "#B23A48",
+        "Envelope-DQN": "#4C3B8F",
     }
     for idx, method in enumerate(summary["method"].drop_duplicates()):
         sub = summary[summary["method"] == method].sort_values("k_budget")
         if sub.empty:
             continue
         color = next((v for k, v in colors.items() if k.lower() in str(method).lower()), "#333333")
-        ax.plot(
+        yerr_col = y_col.replace("_mean", "_std")
+        ax.errorbar(
             sub["k_budget"],
             sub[y_col],
+            yerr=sub[yerr_col].fillna(0.0) if yerr_col in sub.columns else None,
             marker=markers[idx % len(markers)],
             linestyle=linestyles[idx % len(linestyles)],
-            linewidth=2.0,
-            markersize=5.5,
-            alpha=0.9,
+            linewidth=2.2,
+            markersize=6.0,
+            markeredgecolor="white",
+            markeredgewidth=0.7,
+            capsize=3,
+            elinewidth=1.0,
+            alpha=0.95,
             color=color,
             label=str(method),
         )
-    ylabel = y_col.replace("_", " ")
-    ax.set_title(f"{ylabel} vs effective K", fontsize=13, fontweight="bold", pad=10)
+    ylabel_map = {
+        "ssim_mean": "Mean SSIM (higher is better)",
+        "mse_mean": "Mean MSE (lower is better)",
+    }
+    title_map = {
+        "ssim_mean": "Baseline perceptual quality by component budget",
+        "mse_mean": "Baseline reconstruction error by component budget",
+    }
+    ylabel = ylabel_map.get(y_col, y_col.replace("_", " "))
+    ax.set_title(title_map.get(y_col, f"{ylabel} vs effective K"), fontsize=13.5, fontweight="bold", pad=11)
     ax.set_xlabel("Effective component budget K", fontsize=11)
     ax.set_ylabel(ylabel, fontsize=11)
-    ax.grid(True, alpha=0.22, linewidth=0.6)
+    ax.grid(True, color="#D8D8D8", linewidth=0.75, alpha=0.75)
+    ax.set_axisbelow(True)
+    if y_col == "mse_mean":
+        ax.set_yscale("log")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.legend(frameon=True, fontsize=9, loc="best")
+    ax.tick_params(axis="both", labelsize=9.5, colors="#303030")
+    ax.legend(
+        frameon=True,
+        fancybox=False,
+        edgecolor="#CFCFCF",
+        facecolor="white",
+        framealpha=0.96,
+        fontsize=9,
+        loc="best",
+    )
     fig.tight_layout()
-    fig.savefig(output_path, dpi=260, bbox_inches="tight")
+    fig.savefig(output_path, dpi=340, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 

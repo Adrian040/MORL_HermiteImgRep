@@ -1,0 +1,6 @@
+method,n_solutions,n_pareto_global,n_pareto_by_method,hv_4d,hv_4d_method,hv_2d_quality_parsimony
+Envelope-DQN,50,0,0,0.75264,monte_carlo,0.8525169860192154
+greedy,30,0,0,0.74709,monte_carlo,0.8483918309713752
+random,600,0,0,0.74776,monte_carlo,0.8492592612353053
+top-k energy,30,0,0,0.72393,monte_carlo,0.8246908635491659
+GLOBAL,710,0,0,0.75349,monte_carlo,0.8535307089602882

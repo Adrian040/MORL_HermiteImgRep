@@ -1,0 +1,16 @@
+{
+  "state_dim": 24,
+  "reward_dim": 4,
+  "n_actions": 11,
+  "n_components": 10,
+  "episodes": 3000,
+  "device": "cuda",
+  "best_score": 0.796336348143036,
+  "outputs": {
+    "training_log": "results\\multiseed\\seed_3\\results\\tables\\Days9-14_training_log.csv",
+    "eval_summary": "results\\multiseed\\seed_3\\results\\tables\\Days9-14_eval_summary.csv",
+    "final_checkpoint": "results\\multiseed\\seed_3\\results\\checkpoints\\Days9-14_final_envelope_dqn.pt",
+    "best_checkpoint": "results\\multiseed\\seed_3\\results\\checkpoints\\Days9-14_best_envelope_dqn.pt",
+    "training_curves": "results\\multiseed\\seed_3\\results\\figures\\Days9-14_training_curves.png"
+  }
+}

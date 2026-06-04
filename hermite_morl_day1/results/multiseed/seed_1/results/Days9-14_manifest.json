@@ -3,9 +3,9 @@
   "reward_dim": 4,
   "n_actions": 11,
   "n_components": 10,
-  "episodes": 100,
+  "episodes": 3000,
   "device": "cuda",
-  "best_score": 0.7306254984900902,
+  "best_score": 0.7876815525558091,
   "outputs": {
     "training_log": "results\\multiseed\\seed_1\\results\\tables\\Days9-14_training_log.csv",
     "eval_summary": "results\\multiseed\\seed_1\\results\\tables\\Days9-14_eval_summary.csv",

@@ -1,6 +1,6 @@
 {
   "input_csv": "results\\tables\\Days15-18_all_methods_by_image.csv",
-  "mse_reference": 0.0051716733723878,
+  "mse_reference": 0.0051716724410653,
   "n_rows": 2030,
   "n_pareto_global": 41,
   "objective_space": "results\\tables\\Days19-22_objective_space.csv",
