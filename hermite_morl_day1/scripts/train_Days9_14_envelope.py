@@ -28,6 +28,7 @@ from src.morl_envelope import (
     scalarized_score,
     select_action,
 )
+from src.metrics import reconstruction_metrics
 from src.training_plots import save_training_curves
 
 
@@ -92,9 +93,13 @@ def evaluate_policy(env, network: VectorQNetwork, preferences: np.ndarray, devic
                 state = next_state
             reward_sum = np.sum(rewards, axis=0) if rewards else np.zeros(env.reward_dim, dtype=np.float32)
             scalar_return = float(np.dot(pref, reward_sum))
+            metrics_full = reconstruction_metrics(env.images[image_id], info["reconstruction"])
             metrics = {
-                "mse": float(info["mse"]),
-                "ssim": float(info["ssim"]),
+                "mse": metrics_full["mse"],
+                "ssim": metrics_full["ssim"],
+                "psnr": metrics_full["psnr"],
+                "gradient_mse": metrics_full["gradient_mse"],
+                "edge_corr": metrics_full["edge_corr"],
                 "cost": float(info["cost"]),
                 "k_norm": float(info["k_norm"]),
             }
@@ -105,9 +110,16 @@ def evaluate_policy(env, network: VectorQNetwork, preferences: np.ndarray, devic
                 "image_id": image_id,
                 "mse": metrics["mse"],
                 "ssim": metrics["ssim"],
-                "k": int(info["k"]),
+                "psnr": metrics["psnr"],
+                "gradient_mse": metrics["gradient_mse"],
+                "edge_corr": metrics["edge_corr"],
+                "k": int(info.get("paid_k", info["k"])),
+                "paid_k": int(info.get("paid_k", info["k"])),
+                "total_k": int(info.get("total_k", info["k"])),
                 "cost": metrics["cost"],
                 "k_norm": metrics["k_norm"],
+                "reward_raw": " ".join(f"{v:.8g}" for v in np.asarray(info.get("reward_raw", np.zeros(env.reward_dim)))),
+                "reward_used": " ".join(f"{v:.8g}" for v in np.asarray(info.get("reward_used", np.zeros(env.reward_dim)))),
                 "scalar_return": scalar_return,
                 "score": scalarized_score(metrics),
                 "selected_indices": " ".join(map(str, info["selected_indices"])),
@@ -120,14 +132,27 @@ def evaluate_policy(env, network: VectorQNetwork, preferences: np.ndarray, devic
 def train(config: dict) -> Dict:
     seed = int(config.get("seed", 0))
     set_seed(seed)
+    hermite_cfg = config.get("hermite", {})
+    multi_cfg = config.get("hermite_multi_config", {})
+    experiment_cfg = config.get("experiment", {})
+    active_slug = str(experiment_cfg.get("active_hermite_grid_slug", "main_config"))
+    active_sigma = float(hermite_cfg.get("sigma", 1.5))
+    active_kernel_size = int(hermite_cfg.get("kernel_size", 13))
+    active_max_order = int(hermite_cfg.get("max_order", 3))
+    multi_sigmas = " ".join(map(str, multi_cfg.get("sigmas", []))) if bool(multi_cfg.get("enabled", False)) else ""
+    multi_kernel_sizes = " ".join(map(str, multi_cfg.get("kernel_sizes", []))) if bool(multi_cfg.get("enabled", False)) else ""
 
-    out_root = Path(config.get("project_root", ".")) / "results"
+    project_root = Path(config.get("project_root", "."))
+    output_root = Path(config.get("experiment", {}).get("output_root", "results"))
+    out_root = output_root if output_root.is_absolute() else project_root / output_root
     tables_dir = out_root / "tables"
     figures_dir = out_root / "figures"
     ckpt_dir = out_root / "checkpoints"
     processed_dir = Path(config.get("project_root", ".")) / "data" / "processed"
     for d in [tables_dir, figures_dir, ckpt_dir, processed_dir]:
         d.mkdir(parents=True, exist_ok=True)
+    with open(out_root / "config_used.yaml", "w", encoding="utf-8") as f:
+        yaml.safe_dump(config, f, sort_keys=False, allow_unicode=True)
 
     splits = prepare_dataset(config)
     save_processed_dataset(splits, processed_dir / "dataset_Days9-14.npz")
@@ -204,13 +229,22 @@ def train(config: dict) -> Dict:
         reward_sum = np.sum(episode_rewards, axis=0) if episode_rewards else np.zeros(train_env.reward_dim, dtype=np.float32)
         log_row = {
             "episode": episode,
+            "seed": seed,
+            "hermite_config": active_slug,
+            "sigma": active_sigma,
+            "kernel_size": active_kernel_size,
+            "max_order": active_max_order,
+            "multi_sigmas": multi_sigmas,
+            "multi_kernel_sizes": multi_kernel_sizes,
             "global_step": global_step,
             "epsilon": epsilon_by_step(global_step, epsilon_start, epsilon_end, epsilon_decay_steps),
             "scalar_return": float(np.dot(pref, reward_sum)),
             "loss": float(np.mean(losses)) if losses else np.nan,
             "mse": float(info["mse"]),
             "ssim": float(info["ssim"]),
-            "k": int(info["k"]),
+            "k": int(info.get("paid_k", info["k"])),
+            "paid_k": int(info.get("paid_k", info["k"])),
+            "total_k": int(info.get("total_k", info["k"])),
             "cost": float(info["cost"]),
             "actions": " ".join(map(str, actions)),
         }
@@ -247,10 +281,21 @@ def train(config: dict) -> Dict:
     save_training_curves(history, figures_dir / "Days9-14_training_curves.png")
 
     final_eval = evaluate_policy(val_env, policy_net, preferences, device, max_images=None)
+    final_eval["seed"] = seed
+    final_eval["hermite_config"] = active_slug
+    final_eval["sigma"] = active_sigma
+    final_eval["kernel_size"] = active_kernel_size
+    final_eval["max_order"] = active_max_order
+    final_eval["multi_sigmas"] = multi_sigmas
+    final_eval["multi_kernel_sizes"] = multi_kernel_sizes
     final_eval.to_csv(tables_dir / "Days9-14_eval_by_preference.csv", index=False)
     summary = final_eval.groupby(["preference_id", "preference_name", "preference"]).agg(
         mse=("mse", "mean"),
         ssim=("ssim", "mean"),
+        psnr=("psnr", "mean"),
+        gradient_mse=("gradient_mse", "mean"),
+        edge_corr=("edge_corr", "mean"),
+        paid_k=("paid_k", "mean"),
         k=("k", "mean"),
         cost=("cost", "mean"),
         scalar_return=("scalar_return", "mean"),
@@ -272,6 +317,24 @@ def train(config: dict) -> Dict:
         "hidden_dim": int(training_cfg.get("hidden_dim", 128)),
         "episode": episodes,
         "best_score": best_score,
+        "detail_only_h00_free": bool(config.get("env", {}).get("detail_only_h00_free", True)),
+        "reward_mode": str(config.get("reward", {}).get("mode", "relative")),
+        "reconstruction_mode": str(config.get("reconstruction", {}).get("mode", "least_squares")),
+        "cost_mode": str(config.get("cost", {}).get("mode", "extra_kernel_flops")),
+        "free_kernel_size": int(config.get("cost", {}).get("free_kernel_size", 13)),
+        "hermite_main_config": {
+            "max_order": int(config.get("hermite", {}).get("max_order", 3)),
+            "sigma": float(config.get("hermite", {}).get("sigma", 1.5)),
+            "kernel_size": int(config.get("hermite", {}).get("kernel_size", 13)),
+        },
+        "hermite_sweep": config.get("hermite_sweep", {}),
+        "seeds": config.get("experiment", {}).get("seeds", [seed]),
+        "image_quality_metrics": config.get("evaluation", {}).get("image_quality_metrics", {}).get("metrics", ["psnr"]),
+        "edge_metrics": config.get("evaluation", {}).get("edge_metrics", {}).get("metrics", ["gradient_mse", "edge_corr"]),
+        "edge_metrics_affect_training": bool(config.get("evaluation", {}).get("edge_metrics", {}).get("affect_training", False)),
+        "equal_budget_hv": bool(config.get("evaluation", {}).get("equal_budget", {}).get("enabled", True)),
+        "same_k_analysis": bool(config.get("evaluation", {}).get("same_k", {}).get("enabled", True)),
+        "external_dfu_eval": "optional",
     }, ckpt_dir / "Days9-14_final_envelope_dqn.pt")
 
     with open(out_root / "Days9-14_preferences.json", "w", encoding="utf-8") as f:
@@ -283,6 +346,14 @@ def train(config: dict) -> Dict:
         "n_actions": train_env.n_actions,
         "n_components": train_env.n_components,
         "episodes": episodes,
+        "seed": seed,
+        "hermite_config": active_slug,
+        "sigma": active_sigma,
+        "kernel_size": active_kernel_size,
+        "max_order": active_max_order,
+        "multi_sigmas": multi_sigmas,
+        "multi_kernel_sizes": multi_kernel_sizes,
+        "hermite_multi_config": multi_cfg,
         "device": str(device),
         "best_score": best_score,
         "outputs": {
@@ -310,9 +381,19 @@ def main() -> None:
     parser.add_argument("--test-images", type=int, default=None)
     parser.add_argument("--eval-every", type=int, default=None)
     parser.add_argument("--device", type=str, default=None)
+    parser.add_argument("--seeds", type=int, nargs="*", default=None)
     args = parser.parse_args()
     config = apply_cli_overrides(load_config(args.config), args)
-    train(config)
+    seeds = args.seeds if args.seeds else [int(config.get("seed", 0))]
+    base_output_root = config.get("experiment", {}).get("output_root", "results")
+    for seed in seeds:
+        run_config = dict(config)
+        run_config["seed"] = int(seed)
+        if len(seeds) > 1:
+            run_config.setdefault("experiment", {})
+            run_config["experiment"] = dict(run_config["experiment"])
+            run_config["experiment"]["output_root"] = str(Path(base_output_root) / "seeds" / f"seed_{seed}")
+        train(run_config)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from typing import Dict
 import numpy as np
 
 from .env_hermite_momdp import HermiteSelectionEnv
-from .env_utils import build_representation_from_config
+from .env_utils import build_env_kwargs_from_config, build_representation_from_config
 
 
 def make_selection_env_from_images(images: np.ndarray, config: Dict, split: str = "train") -> HermiteSelectionEnv:
@@ -15,16 +15,10 @@ def make_selection_env_from_images(images: np.ndarray, config: Dict, split: str 
     con la implementación de Days5-8.
     """
     representation = build_representation_from_config(config)
-    env_cfg = config.get("env", {})
-    seed_offset = 0 if split == "train" else 1000 if split == "val" else 2000
     return HermiteSelectionEnv(
         images=images,
         representation=representation,
-        max_steps=int(env_cfg.get("max_steps", representation.filter_bank.n_components)),
-        calibrated_reconstruction=bool(env_cfg.get("calibrated_reconstruction", True)),
-        repeated_action_penalty=abs(float(env_cfg.get("repeated_action_penalty", 0.05))),
-        terminate_on_repeated_action=bool(env_cfg.get("terminate_on_repeated_action", False)),
-        seed=int(config.get("seed", 0)) + seed_offset,
+        **build_env_kwargs_from_config(config, representation, split=split),
     )
 
 

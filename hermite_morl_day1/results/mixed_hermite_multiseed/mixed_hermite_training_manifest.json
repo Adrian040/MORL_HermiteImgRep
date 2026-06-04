@@ -1,0 +1,38 @@
+{
+  "mode": "one_agent_per_seed_with_multi_config_bank",
+  "n_seeds": 1,
+  "n_runs": 1,
+  "seeds": [
+    0
+  ],
+  "mixed_config": {
+    "enabled": true,
+    "sigmas": [
+      1.0
+    ],
+    "kernel_sizes": [
+      9
+    ],
+    "max_order": 2,
+    "action_space": "unique_components",
+    "n_expected_components": 15,
+    "n_expected_actions_with_stop": 16
+  },
+  "runs": [
+    {
+      "seed": 0,
+      "mixed_config": "mixed_sigmas_1p0__kernels_9__order_2",
+      "sigmas": [
+        1.0
+      ],
+      "kernel_sizes": [
+        9
+      ],
+      "max_order": 2,
+      "output_root": "results\\mixed_hermite_multiseed\\seed_0",
+      "n_components": 6,
+      "n_actions": 7,
+      "best_score": 0.8238827244940395
+    }
+  ]
+}

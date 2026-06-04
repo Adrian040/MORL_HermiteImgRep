@@ -1,0 +1,36 @@
+{
+  "state_dim": 16,
+  "reward_dim": 4,
+  "n_actions": 7,
+  "n_components": 6,
+  "episodes": 5,
+  "seed": 0,
+  "hermite_config": "mixed_sigmas_1p0__kernels_9__order_2",
+  "sigma": 1.5,
+  "kernel_size": 13,
+  "max_order": 4,
+  "multi_sigmas": "1.0",
+  "multi_kernel_sizes": "9",
+  "hermite_multi_config": {
+    "enabled": true,
+    "sigmas": [
+      1.0
+    ],
+    "kernel_sizes": [
+      9
+    ],
+    "max_order": 2,
+    "action_space": "unique_components",
+    "n_expected_components": 15,
+    "n_expected_actions_with_stop": 16
+  },
+  "device": "cuda",
+  "best_score": 0.8238827244940395,
+  "outputs": {
+    "training_log": "results\\mixed_hermite_multiseed\\seed_0\\tables\\Days9-14_training_log.csv",
+    "eval_summary": "results\\mixed_hermite_multiseed\\seed_0\\tables\\Days9-14_eval_summary.csv",
+    "final_checkpoint": "results\\mixed_hermite_multiseed\\seed_0\\checkpoints\\Days9-14_final_envelope_dqn.pt",
+    "best_checkpoint": "results\\mixed_hermite_multiseed\\seed_0\\checkpoints\\Days9-14_best_envelope_dqn.pt",
+    "training_curves": "results\\mixed_hermite_multiseed\\seed_0\\figures\\Days9-14_training_curves.png"
+  }
+}

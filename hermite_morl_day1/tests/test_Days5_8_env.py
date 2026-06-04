@@ -21,13 +21,15 @@ def main() -> None:
     assert env.reward_dim == 4
     assert env.n_actions == env.n_components + 1
     assert env.stop_action == env.n_components
-    assert info["k"] == 0
+    assert info["total_k"] == 1
+    assert info["paid_k"] == 0
+    assert info["detail_only_h00_free"] is True
 
     obs, reward, terminated, truncated, info = env.step(0)
     assert reward.shape == (4,)
     assert np.all(np.isfinite(reward))
-    assert info["event"] == "select_component"
-    assert info["k"] == 1
+    assert info["event"] == "repeated_action"
+    assert info["invalid_action"] is True
     assert np.isfinite(info["mse"])
     assert np.isfinite(info["ssim"])
 
@@ -39,6 +41,18 @@ def main() -> None:
     assert terminated is True
     assert truncated is False
     assert info["event"] == "stop"
+
+    legacy = dict(config)
+    legacy["env"] = dict(config["env"])
+    legacy["env"]["detail_only_h00_free"] = False
+    legacy_env, _ = make_env_from_config(legacy, split="train")
+    _, legacy_info = legacy_env.reset(options={"image_index": 0})
+    assert legacy_info["total_k"] == 0
+    assert legacy_info["paid_k"] == 0
+    _, legacy_reward, _, _, legacy_info = legacy_env.step(0)
+    assert legacy_info["event"] == "select_component"
+    assert legacy_info["paid_k"] == 1
+    assert legacy_reward.shape == (4,)
 
     obs, info = env.reset(options={"image_index": 0})
     for _ in range(env.max_steps):

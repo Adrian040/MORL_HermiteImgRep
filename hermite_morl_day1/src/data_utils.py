@@ -5,7 +5,17 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from PIL import Image
-from skimage import color, data, transform
+
+try:
+    if int(np.__version__.split(".")[0]) >= 2:
+        raise ImportError("Skipping skimage with NumPy 2.x binary-incompatible environment.")
+    from skimage import color, data, transform
+    _ = color.rgb2gray(np.zeros((2, 2, 3), dtype=np.float32))
+    _ = transform.resize(np.zeros((2, 2), dtype=np.float32), (2, 2))
+except Exception:
+    color = None
+    data = None
+    transform = None
 
 from .metrics import to_float01
 
@@ -18,14 +28,23 @@ def _resize_gray(image: np.ndarray, image_size: int) -> np.ndarray:
     if image.ndim == 3:
         if image.shape[-1] == 4:
             image = image[..., :3]
-        image = color.rgb2gray(image)
+        if color is not None:
+            image = color.rgb2gray(image)
+        else:
+            image = np.mean(image, axis=-1)
     image = to_float01(image)
-    resized = transform.resize(
-        image,
-        (image_size, image_size),
-        anti_aliasing=True,
-        preserve_range=True,
-    )
+    if transform is not None:
+        resized = transform.resize(
+            image,
+            (image_size, image_size),
+            anti_aliasing=True,
+            preserve_range=True,
+        )
+    else:
+        resized = np.asarray(
+            Image.fromarray((255 * image).astype(np.uint8), mode="L").resize((image_size, image_size), Image.Resampling.BILINEAR),
+            dtype=np.float32,
+        ) / 255.0
     return np.asarray(resized, dtype=np.float32)
 
 
@@ -58,6 +77,17 @@ def _extract_patches(image: np.ndarray, image_size: int, stride: Optional[int] =
 
 
 def build_skimage_dataset(image_size: int = 64, n_images: int = 60, seed: int = 0) -> np.ndarray:
+    if data is None:
+        rng = np.random.default_rng(seed)
+        images = []
+        yy, xx = np.mgrid[0:image_size, 0:image_size]
+        for _ in range(n_images):
+            cx, cy = rng.uniform(0.25, 0.75, size=2) * image_size
+            sigma = rng.uniform(0.08, 0.22) * image_size
+            blob = np.exp(-((xx - cx) ** 2 + (yy - cy) ** 2) / (2.0 * sigma**2))
+            texture = 0.15 * rng.random((image_size, image_size))
+            images.append(to_float01(blob + texture))
+        return np.stack(images, axis=0).astype(np.float32)
     base_images = [
         data.camera(),
         data.coins(),

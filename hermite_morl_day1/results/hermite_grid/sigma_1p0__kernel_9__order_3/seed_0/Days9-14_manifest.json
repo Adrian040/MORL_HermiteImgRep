@@ -1,0 +1,21 @@
+{
+  "state_dim": 24,
+  "reward_dim": 4,
+  "n_actions": 11,
+  "n_components": 10,
+  "episodes": 3000,
+  "seed": 0,
+  "hermite_config": "sigma_1p0__kernel_9__order_3",
+  "sigma": 1.0,
+  "kernel_size": 9,
+  "max_order": 3,
+  "device": "cuda",
+  "best_score": 0.8867343169581566,
+  "outputs": {
+    "training_log": "results\\hermite_grid\\sigma_1p0__kernel_9__order_3\\seed_0\\tables\\Days9-14_training_log.csv",
+    "eval_summary": "results\\hermite_grid\\sigma_1p0__kernel_9__order_3\\seed_0\\tables\\Days9-14_eval_summary.csv",
+    "final_checkpoint": "results\\hermite_grid\\sigma_1p0__kernel_9__order_3\\seed_0\\checkpoints\\Days9-14_final_envelope_dqn.pt",
+    "best_checkpoint": "results\\hermite_grid\\sigma_1p0__kernel_9__order_3\\seed_0\\checkpoints\\Days9-14_best_envelope_dqn.pt",
+    "training_curves": "results\\hermite_grid\\sigma_1p0__kernel_9__order_3\\seed_0\\figures\\Days9-14_training_curves.png"
+  }
+}

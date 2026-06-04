@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 OBJECTIVE_COLUMNS = ["obj_mse", "obj_ssim", "obj_cost", "obj_k"]
-METRIC_COLUMNS = ["mse", "ssim", "k", "cost", "k_norm"]
+METRIC_COLUMNS = ["mse", "ssim", "psnr", "gradient_mse", "edge_corr", "paid_k", "total_k", "k", "cost", "k_norm"]
 
 
 def ensure_objective_columns(df: pd.DataFrame, mse_reference: float | None = None) -> tuple[pd.DataFrame, float]:
@@ -145,21 +145,33 @@ def build_hypervolume_summary(
 
 
 def build_method_summary(df: pd.DataFrame, hv_summary: pd.DataFrame | None = None) -> pd.DataFrame:
-    agg = df.groupby("method").agg(
-        n_solutions=("method", "size"),
-        mse_mean=("mse", "mean"),
-        mse_std=("mse", "std"),
-        ssim_mean=("ssim", "mean"),
-        ssim_std=("ssim", "std"),
-        k_mean=("k", "mean"),
-        k_std=("k", "std"),
-        cost_mean=("cost", "mean"),
-        cost_std=("cost", "std"),
-        obj_mse_mean=("obj_mse", "mean"),
-        obj_ssim_mean=("obj_ssim", "mean"),
-        obj_cost_mean=("obj_cost", "mean"),
-        obj_k_mean=("obj_k", "mean"),
-    ).reset_index()
+    agg_spec = {
+        "n_solutions": ("method", "size"),
+        "mse_mean": ("mse", "mean"),
+        "mse_std": ("mse", "std"),
+        "ssim_mean": ("ssim", "mean"),
+        "ssim_std": ("ssim", "std"),
+        "k_mean": ("k", "mean"),
+        "k_std": ("k", "std"),
+        "cost_mean": ("cost", "mean"),
+        "cost_std": ("cost", "std"),
+        "obj_mse_mean": ("obj_mse", "mean"),
+        "obj_ssim_mean": ("obj_ssim", "mean"),
+        "obj_cost_mean": ("obj_cost", "mean"),
+        "obj_k_mean": ("obj_k", "mean"),
+    }
+    optional = {
+        "psnr": ["mean", "std"],
+        "gradient_mse": ["mean", "std"],
+        "edge_corr": ["mean", "std"],
+        "paid_k": ["mean", "std"],
+        "total_k": ["mean", "std"],
+    }
+    for col, stats in optional.items():
+        if col in df.columns:
+            for stat in stats:
+                agg_spec[f"{col}_{stat}"] = (col, stat)
+    agg = df.groupby("method").agg(**agg_spec).reset_index()
     if hv_summary is not None:
         hv_cols = hv_summary[hv_summary["method"] != "GLOBAL"][["method", "hv_4d", "hv_2d_quality_parsimony"]]
         agg = agg.merge(hv_cols, on="method", how="left")
@@ -178,6 +190,10 @@ def build_preference_summary(df: pd.DataFrame) -> pd.DataFrame:
     summary = pref_like.groupby(group_cols).agg(
         mse_mean=("mse", "mean"),
         ssim_mean=("ssim", "mean"),
+        psnr_mean=("psnr", "mean") if "psnr" in pref_like.columns else ("mse", "count"),
+        gradient_mse_mean=("gradient_mse", "mean") if "gradient_mse" in pref_like.columns else ("mse", "count"),
+        edge_corr_mean=("edge_corr", "mean") if "edge_corr" in pref_like.columns else ("mse", "count"),
+        paid_k_mean=("paid_k", "mean") if "paid_k" in pref_like.columns else ("k", "mean"),
         k_mean=("k", "mean"),
         cost_mean=("cost", "mean"),
         common_components=("selected_labels", lambda x: most_common_nonempty(x)),
