@@ -83,7 +83,7 @@ def _draw_line_plot(
     draw: ImageDraw.ImageDraw,
     box: tuple[int, int, int, int],
     x: np.ndarray,
-    series: list[tuple[str, np.ndarray, str, int]],
+    series: list[tuple],
     y_limits: tuple[float, float] | None = None,
 ) -> None:
     x0, y0, x1, y1 = box
@@ -121,19 +121,63 @@ def _draw_line_plot(
         ys = np.clip(ys, top, bottom)
         return list(map(tuple, np.stack([xs, ys], axis=1)))
 
-    for label, values, color, width in series:
+    def _draw_polyline(points: list[tuple[float, float]], color: str, width: int, style: str) -> None:
+        if style != "dashed":
+            draw.line(points, fill=_hex(color), width=width, joint="curve")
+            return
+        dash, gap = 13.0, 9.0
+        cycle = dash + gap
+        phase = 0.0
+        for p0, p1 in zip(points[:-1], points[1:]):
+            x_start, y_start = p0
+            x_end, y_end = p1
+            dx = x_end - x_start
+            dy = y_end - y_start
+            length = float(np.hypot(dx, dy))
+            if length <= 1e-12:
+                continue
+            ux = dx / length
+            uy = dy / length
+            local = 0.0
+            while local < length:
+                in_dash = phase < dash
+                remaining_phase = (dash if in_dash else cycle) - phase
+                step = min(remaining_phase, length - local)
+                if in_dash:
+                    draw.line(
+                        (
+                            x_start + ux * local,
+                            y_start + uy * local,
+                            x_start + ux * (local + step),
+                            y_start + uy * (local + step),
+                        ),
+                        fill=_hex(color),
+                        width=width,
+                    )
+                local += step
+                phase = (phase + step) % cycle
+
+    for item in series:
+        label, values, color, width = item[:4]
+        style = item[4] if len(item) > 4 else "solid"
         points = _points(values)
         if len(points) > 1:
-            draw.line(points, fill=_hex(color), width=width, joint="curve")
+            _draw_polyline(points, color, width, style)
         elif points:
             px, py = points[0]
             draw.ellipse((px - 2, py - 2, px + 2, py + 2), fill=_hex(color))
 
     legend_x = right - 168
     legend_y = y0 + 8
-    for idx, (label, _values, color, width) in enumerate(series):
+    for idx, item in enumerate(series):
+        label, _values, color, width = item[:4]
+        style = item[4] if len(item) > 4 else "solid"
         yy = legend_y + 16 * idx
-        draw.line((legend_x, yy + 7, legend_x + 22, yy + 7), fill=_hex(color), width=max(2, width))
+        if style == "dashed":
+            draw.line((legend_x, yy + 7, legend_x + 8, yy + 7), fill=_hex(color), width=max(2, width))
+            draw.line((legend_x + 14, yy + 7, legend_x + 22, yy + 7), fill=_hex(color), width=max(2, width))
+        else:
+            draw.line((legend_x, yy + 7, legend_x + 22, yy + 7), fill=_hex(color), width=max(2, width))
         draw.text((legend_x + 28, yy), label, fill=_hex(PALETTE["text"]), font=_font(10))
 
 
@@ -216,14 +260,16 @@ def save_training_curves(history, output_path: str | Path) -> None:
 
     _panel(draw, boxes[3], "Exploration and compactness", "Epsilon decay, cost, and selected K")
     k_norm = k / max(float(np.nanmax(k)), 1.0)
+    cost_smooth = _rolling_mean(cost, window)
+    k_smooth = _rolling_mean(k_norm, window)
     _draw_line_plot(
         draw,
         boxes[3],
         episodes,
         [
             ("epsilon", epsilon, "#3182bd", 2),
-            ("cost", _rolling_mean(cost, window), PALETTE["cost"], 3),
-            ("K normalized", _rolling_mean(k_norm, window), PALETTE["k"], 3),
+            ("K normalized", k_smooth, PALETTE["k"], 5),
+            ("cost", cost_smooth, PALETTE["cost"], 2, "dashed"),
         ],
         y_limits=(0.0, 1.0),
     )

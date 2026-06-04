@@ -3,7 +3,7 @@
     0,
     1
   ],
-  "date": "2026-06-04T04:26:08",
+  "date": "2026-06-04T05:02:50",
   "config": {
     "project_root": ".",
     "seed": 0,
@@ -114,7 +114,7 @@
         "n_components": 10,
         "episodes": 100,
         "device": "cuda",
-        "best_score": 0.6788561260216703,
+        "best_score": 0.695630898510659,
         "outputs": {
           "training_log": "results\\multiseed\\seed_0\\results\\tables\\Days9-14_training_log.csv",
           "eval_summary": "results\\multiseed\\seed_0\\results\\tables\\Days9-14_eval_summary.csv",
@@ -136,7 +136,7 @@
         "n_components": 10,
         "episodes": 100,
         "device": "cuda",
-        "best_score": 0.7476611045069972,
+        "best_score": 0.7306254984900902,
         "outputs": {
           "training_log": "results\\multiseed\\seed_1\\results\\tables\\Days9-14_training_log.csv",
           "eval_summary": "results\\multiseed\\seed_1\\results\\tables\\Days9-14_eval_summary.csv",

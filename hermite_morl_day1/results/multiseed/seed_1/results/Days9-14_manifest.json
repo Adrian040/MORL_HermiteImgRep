@@ -5,7 +5,7 @@
   "n_components": 10,
   "episodes": 100,
   "device": "cuda",
-  "best_score": 0.7476611045069972,
+  "best_score": 0.7306254984900902,
   "outputs": {
     "training_log": "results\\multiseed\\seed_1\\results\\tables\\Days9-14_training_log.csv",
     "eval_summary": "results\\multiseed\\seed_1\\results\\tables\\Days9-14_eval_summary.csv",
